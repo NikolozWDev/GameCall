@@ -1,0 +1,60 @@
+# ENV, SECRETS (CRITICAL ZAKO!)
+.env
+.env.*
+*.key
+*.pem
+*.crt
+secrets/
+credentials/
+
+# PYTHON
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# VIRTUAL ENV
+env/
+venv/
+.venv/
+ENV/
+
+# DJANGO
+*.log
+local_settings.py
+db.sqlite3
+media/
+staticfiles/
+
+# CACHE, SESSIONS
+.cache/
+*.session
+sessions/
+
+# IDE, EDITORS
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# TEST, COVERAGE
+htmlcov/
+.coverage
+coverage.xml
+.pytest_cache/
+
+# DEPLOY
+*.pid
+*.sock
+*.out
+*.service
+
+# NODE, FRONTEND (CASE)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
