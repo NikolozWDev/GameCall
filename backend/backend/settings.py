@@ -135,7 +135,7 @@ SIMPLE_JWT = {
 }
 
 # USER
-AUTH_USER_MODEL = 'api.user'
+AUTH_USER_MODEL = "api.User"
 
 # CORS, CSRF
 CORS_ALLOW_CREDENTIALS = True
