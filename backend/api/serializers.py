@@ -3,7 +3,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from rest_framework import serializers
 from .models import Room
-User = get_user_model
+User = get_user_model()
 
 
 class UserRegisterSerializer(serializers.ModelSerializer):
