@@ -47,16 +47,16 @@ class UserPublicSerializer(serializers.ModelSerializer):
 
 
 class RoomCreateSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Room
         fields = ("id", "name", "room_code", "created_at")
         read_only_fields = ("id", "room_code", "created_at")
-    
+
     def create(self, validated_data):
         request = self.context["request"]
         if not request.user.is_authenticated:
             raise serializers.ValidationError("Authentication required")
+
         room = Room.objects.create(
             creator=request.user,
             name=validated_data["name"]
@@ -64,7 +64,7 @@ class RoomCreateSerializer(serializers.ModelSerializer):
         return room
 
 
-class RoomJoinSerializer(serializers.ModelSerializer):
+class RoomJoinSerializer(serializers.Serializer):
     room_code = serializers.CharField(max_length=10)
 
     def validate_room_code(self, value):

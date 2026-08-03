@@ -52,10 +52,10 @@ INSTALLED_APPS = [
 
 # MIDDLEWARE
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
+
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
-
-    "corsheaders.middleware.CorsMiddleware",
 
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -88,17 +88,25 @@ TEMPLATES = [
     },
 ]
 
-# DATABASE
-DATABASES = {
-    "default": {
-        "ENGINE": env("DB_ENGINE", default="django.db.backends.sqlite3"),
-        "NAME": env("DB_NAME", default=BASE_DIR / "db.sqlite3"),
-        "USER": env("DB_USER", default=""),
-        "PASSWORD": env("DB_PASSWORD", default=""),
-        "HOST": env("DB_HOST", default=""),
-        "PORT": env("DB_PORT", default=""),
+if os.getenv("USE_SQLITE", "False") == "True":
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'HOST': env("SUPABASE_HOST"),
+            'PORT': env("SUPABASE_PORT", cast=int, default=5432),
+            'USER': env("SUPABASE_USER"),
+            'NAME': env("SUPABASE_NAME"),
+            'PASSWORD': env("SUPABASE_PWD"),
+            'OPTIONS': {'sslmode': 'require'},
+        }
+    }
 
 # AUTH, PASSWORD SECURITY
 AUTH_PASSWORD_HASHERS = [
@@ -138,11 +146,9 @@ SIMPLE_JWT = {
 AUTH_USER_MODEL = "api.User"
 
 # CORS, CSRF
+CORS_ALLOW_ALL_ORIGINS = True
+
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = env.list(
-    "CORS_ALLOWED_ORIGINS",
-    default=["http://localhost:3000"]
-)
 
 CSRF_TRUSTED_ORIGINS = env.list(
     "CSRF_TRUSTED_ORIGINS",
@@ -152,7 +158,7 @@ CSRF_TRUSTED_ORIGINS = env.list(
 # SECURITY HEADERS (PRODUCTION SAFE)
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS = "DENY"
+X_FRAME_OPTIONS = "SAMEORIGIN"
 
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = True
@@ -182,3 +188,7 @@ USE_TZ = True
 
 # DEFAULTS
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+LIVEKIT_API_KEY = env("LIVEKIT_API_KEY")
+LIVEKIT_API_SECRET = env("LIVEKIT_API_SECRET")
+LIVEKIT_URL = env("LIVEKIT_URL")

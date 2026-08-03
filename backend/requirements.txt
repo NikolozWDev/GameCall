@@ -32,7 +32,8 @@ django-ratelimit>=4.1
 
 # Handle things
 python-dateutil>=2.9
-requests>=2.32
+
+# Realtime Voice / Video
+livekit-api>=0.5
 
 # Others
-django-ratelimit
