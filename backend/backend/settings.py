@@ -99,11 +99,11 @@ else:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
-            'HOST': env("SUPABASE_HOST"),
-            'PORT': env("SUPABASE_PORT", cast=int, default=5432),
-            'USER': env("SUPABASE_USER"),
-            'NAME': env("SUPABASE_NAME"),
-            'PASSWORD': env("SUPABASE_PWD"),
+            'HOST': os.getenv("SUPABASE_HOST"),
+            'PORT': os.getenv("SUPABASE_PORT", "5432"),
+            'USER': os.getenv("SUPABASE_USER"),
+            'NAME': os.getenv("SUPABASE_NAME"),
+            'PASSWORD': os.getenv("SUPABASE_PWD"),
             'OPTIONS': {'sslmode': 'require'},
         }
     }
