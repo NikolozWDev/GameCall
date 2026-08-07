@@ -24,12 +24,10 @@ export function ForgotPasswordForm({ onBack, onResetToken }: ForgotPasswordFormP
   const [remaining, setRemaining] = useState<number>(0)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Cleanup timer
   useEffect(() => {
     return () => { if (timerRef.current) clearInterval(timerRef.current) }
   }, [])
 
-  // Countdown timer
   useEffect(() => {
     if (step === "code" && codeExpiresAt > 0) {
       const update = () => {
@@ -58,7 +56,7 @@ export function ForgotPasswordForm({ onBack, onResetToken }: ForgotPasswordFormP
     setIsLoading(true)
     try {
       await forgotPasswordApi.requestCode(email.trim().toLowerCase())
-      setCodeExpiresAt(Date.now() + 60000) // 1 minute
+      setCodeExpiresAt(Date.now() + 60000) // 1 minute as I wish
       setStep("code")
     } catch (err: any) {
       setError(err.message)

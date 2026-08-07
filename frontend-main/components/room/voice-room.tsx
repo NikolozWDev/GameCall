@@ -62,7 +62,6 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
   const [adminMenuOpen, setAdminMenuOpen] = useState(false)
   const adminMenuRef = useRef<HTMLDivElement>(null)
 
-  // Save room code in URL on mount
   useEffect(() => {
     if (roomData.room_code) {
       window.history.replaceState(null, "", `/room/${roomData.room_code}`)
@@ -78,7 +77,6 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
 
   const isAdmin = roomData.livekit.is_admin
 
-  // Mic permission check
   useEffect(() => {
     if (localParticipant) {
       localParticipant.setMicrophoneEnabled(false).catch(console.error)
@@ -94,7 +92,6 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
     }
   }, [localParticipant])
 
-  // Timer
   useEffect(() => {
     const start = new Date(roomData.created_at).getTime()
     const timer = setInterval(() => {
@@ -107,7 +104,6 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
     return () => clearInterval(timer)
   }, [roomData.created_at])
 
-  // Close admin menu
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (adminMenuRef.current && !adminMenuRef.current.contains(e.target as Node)) {
@@ -189,7 +185,6 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
 
   return (
     <div className="h-screen bg-[#04070E] flex flex-col overflow-hidden">
-      {/* ---- Top Bar ---- */}
       <div className="bg-gray-950/80 backdrop-blur-md border-b border-slate-800 px-6 py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
@@ -199,7 +194,6 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
             <span className="text-white font-bold text-sm">GameCall</span>
           </div>
           <div className="h-6 w-px bg-slate-700" />
-          {/* Room ID + Copy */}
           <div className="text-sm flex items-center gap-2">
             <span className="text-white/40 text-xs">Room ID:</span>
             <div className="flex items-center gap-2 bg-gray-900/80 border border-slate-700 rounded-lg px-3 py-1.5">
@@ -234,7 +228,6 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
         </Button>
       </div>
 
-      {/* ---- Mic Error Warning ---- */}
       {micError && (
         <div className="bg-red-500/10 border-b border-red-500/20 px-4 py-2 flex items-center gap-2 text-red-400 text-xs">
           <AlertTriangle className="h-4 w-4" />
@@ -242,7 +235,6 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
         </div>
       )}
 
-      {/* ---- Main Content ---- */}
       <div className="flex-1 flex overflow-hidden">
         <aside className="w-72 border-r border-slate-800 bg-gray-950/50 flex flex-col">
           <div className="px-4 py-3 border-b border-slate-800">
@@ -339,7 +331,6 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
               <p className="text-white/40 text-sm mt-1">Hosted by {roomData.creator.username}</p>
             </div>
 
-              {/* Room URL display */}
               <div className="bg-gray-900/80 border border-slate-700 rounded-xl px-4 py-2.5 w-full max-w-full overflow-hidden">
                 <div className="flex items-center justify-center gap-2 min-w-0">
                   <Users className="h-4 w-4 text-white/40 shrink-0" />
@@ -360,7 +351,6 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
         </main>
       </div>
 
-      {/* ---- Bottom Control Bar ---- */}
       <div className="bg-gray-950/80 backdrop-blur-md border-t border-slate-800 px-6 py-4 flex items-center justify-center shrink-0 relative">
         <div className="flex items-center gap-8">
           <button

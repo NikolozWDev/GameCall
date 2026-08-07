@@ -124,14 +124,11 @@
   }
 }
 
-/* globals.css */
 
-/* Smooth Scroll */
 html {
   scroll-behavior: smooth;
 }
 
-/* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
 }
@@ -153,13 +150,11 @@ html {
   background-clip: content-box;
 }
 
-/* Firefox */
 * {
   scrollbar-width: thin;
   scrollbar-color: rgba(15, 124, 157, 0.3) transparent;
 }
 
-/* Lenis Smooth Scroll Override */
 html.lenis,
 html.lenis body {
   height: auto;
@@ -226,14 +221,12 @@ html.lenis body {
 .animation-delay-400 {
   animation-delay: 400ms;
 }
-/* Fix Radix Dialog scroll lock interfering with inner scroll */
 body[data-scroll-locked] {
   overflow: hidden !important;
   pointer-events: auto !important;
   padding-right: 0 !important;
 }
 
-/* Allow scroll inside dialog content */
 [data-radix-dialog-content] {
   pointer-events: auto;
 }

@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useCallback } from "react"
 
-// ---------- Config ----------
 const PARTICLE_COUNT = 200
 const MAX_CONNECTIONS = 4
 const CONNECTION_DISTANCE = 180
@@ -13,7 +12,6 @@ const GRID_CELL_SIZE = 150
 const LINE_OPACITY_MAX = 0.15
 const PARTICLE_OPACITY = 0.5
 
-// ---------- Types ----------
 interface Particle {
   x: number
   y: number
@@ -29,7 +27,6 @@ interface GridCell {
   particles: number[]
 }
 
-// ---------- Spatial Grid ----------
 function createGrid(particles: Particle[], width: number, height: number, cellSize: number): GridCell[] {
   const cols = Math.ceil(width / cellSize)
   const rows = Math.ceil(height / cellSize)
@@ -71,7 +68,6 @@ function getNeighbors(
   return neighbors
 }
 
-// ---------- Component ----------
 export function AnimatedBackground({ children }: { children: React.ReactNode }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -150,32 +146,27 @@ export function AnimatedBackground({ children }: { children: React.ReactNode }) 
       const cols = Math.ceil(width / GRID_CELL_SIZE)
       const grid = createGrid(particles, width, height, GRID_CELL_SIZE)
 
-      // Physics update
       for (let i = 0; i < particles.length; i++) {
         const p = particles[i]
 
-        // Home force
+  
         const dxHome = p.homeX - p.x
         const dyHome = p.homeY - p.y
         p.vx += dxHome * HOME_FORCE
         p.vy += dyHome * HOME_FORCE
 
-        // Damping
         p.vx *= DAMPING
         p.vy *= DAMPING
 
-        // Limit wander distance
         const distFromHome = Math.sqrt(dxHome * dxHome + dyHome * dyHome)
         if (distFromHome > MAX_WANDER) {
           p.vx += dxHome * 0.01
           p.vy += dyHome * 0.01
         }
 
-        // Brownian motion
         p.vx += (Math.random() - 0.5) * 0.05
         p.vy += (Math.random() - 0.5) * 0.05
 
-        // Velocity cap
         const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy)
         const maxSpeed = 0.8
         if (speed > maxSpeed) {
@@ -187,7 +178,6 @@ export function AnimatedBackground({ children }: { children: React.ReactNode }) 
         p.y += p.vy * dt
       }
 
-      // Update connections
       for (const p of particles) {
         p.connectionTimer -= dt * 0.016
         if (p.connectionTimer <= 0) {
@@ -203,10 +193,8 @@ export function AnimatedBackground({ children }: { children: React.ReactNode }) 
         }
       }
 
-      // Draw
       ctx.clearRect(0, 0, width, height)
 
-      // Lines
       for (const p of particles) {
         for (const j of p.connections) {
           if (j < particles.indexOf(p)) continue
@@ -224,14 +212,12 @@ export function AnimatedBackground({ children }: { children: React.ReactNode }) 
         }
       }
 
-      // Particles
       for (const p of particles) {
         ctx.beginPath()
         ctx.arc(p.x, p.y, 1.2, 0, Math.PI * 2)
         ctx.fillStyle = `rgba(255,255,255,${PARTICLE_OPACITY})`
         ctx.fill()
 
-        // Soft glow
         ctx.beginPath()
         ctx.arc(p.x, p.y, 3, 0, Math.PI * 2)
         ctx.fillStyle = `rgba(255,255,255,${PARTICLE_OPACITY * 0.2})`

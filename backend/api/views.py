@@ -325,7 +325,7 @@ class ForgotPasswordView(APIView):
         serializer.is_valid(raise_exception=True)
         email = serializer.validated_data['email']
 
-        # Invalidate old unused codes
+        # Invalidate old unused codes so it is it to delete or something else...
         PasswordResetCode.objects.filter(email=email, is_used=False).update(is_used=True)
 
         code = f"{random.randint(100000, 999999):06d}"
@@ -345,13 +345,10 @@ class VerifyResetCodeView(APIView):
         serializer.is_valid(raise_exception=True)
 
         reset_code = serializer.validated_data['reset_code']
-        # Mark code as used
         reset_code.is_used = True
         reset_code.save()
 
-        # Create a reset token (valid 10 minutes)
         user = User.objects.get(email=reset_code.email)
-        # Invalidate old tokens for this user
         PasswordResetToken.objects.filter(user=user, is_used=False).update(is_used=True)
         token_obj = PasswordResetToken.objects.create(user=user)
 
@@ -373,7 +370,6 @@ class ResetPasswordView(APIView):
         user.set_password(new_password)
         user.save()
 
-        # Mark token used
         reset_token.is_used = True
         reset_token.save()
 

@@ -146,7 +146,6 @@ export function AccountSettingsModal({ open, onOpenChange }: AccountSettingsModa
         </div>
 
         <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain px-8 pb-8 space-y-8">
-          {/* Profile Picture */}
           <div className="flex flex-col items-center gap-4">
             <div className="relative">
               <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-800 border-2 border-slate-700 flex items-center justify-center">
@@ -169,7 +168,6 @@ export function AccountSettingsModal({ open, onOpenChange }: AccountSettingsModa
             <span className="text-white/50 text-xs">Click the camera to upload (max 5MB)</span>
           </div>
 
-          {/* Profile Form */}
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="settings-username" className="text-white/70 text-sm font-medium">Username</Label>
@@ -190,7 +188,6 @@ export function AccountSettingsModal({ open, onOpenChange }: AccountSettingsModa
             </Button>
           </div>
 
-          {/* Logout */}
           <div className="pt-4 border-t border-slate-800">
             <Button
               onClick={logout}

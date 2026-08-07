@@ -2,7 +2,6 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/a
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-// ---- Token helpers ----
 export const getAccessToken = (): string | null => {
   if (typeof window === "undefined") return null
   return localStorage.getItem("access_token")
@@ -20,7 +19,6 @@ export const clearTokens = () => {
   localStorage.removeItem("refresh_token")
 }
 
-// ---- Guest helpers ----
 export const getGuestName = (): string | null => {
   if (typeof window === "undefined") return null
   return localStorage.getItem("guest_name")
@@ -37,7 +35,6 @@ export const getGuestSessionId = (): string => {
   return sessionId
 }
 
-// ---- Error class ----
 export class APIError extends Error {
   status: number
   data: Record<string, unknown>
@@ -48,7 +45,6 @@ export class APIError extends Error {
   }
 }
 
-// ---- Fetch with auth ----
 async function fetchWithAuth(endpoint: string, options: RequestInit = {}, requireAuth = false): Promise<Response> {
   const url = `${API_BASE_URL}${endpoint}`
   const headers: HeadersInit = { ...options.headers as Record<string, string> }
@@ -102,7 +98,6 @@ async function refreshAccessToken(): Promise<boolean> {
   return false
 }
 
-// ---- Types ----
 export interface User {
   id: number
   email: string
@@ -144,7 +139,6 @@ export interface RegisterData {
   password2: string
 }
 
-// ---- Supabase Storage ----
 export async function uploadProfilePicture(file: File): Promise<string> {
   const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "")}`
 
@@ -164,11 +158,9 @@ export async function uploadProfilePicture(file: File): Promise<string> {
     throw new Error(err.message || "Upload failed")
   }
 
-  // Return the full public URL using the known file name
   return `${SUPABASE_URL}/storage/v1/object/public/profile-pictures/${fileName}`
 }
 
-// ---- API functions ----
 export const api = {
   async login(creds: LoginCredentials) {
     const res = await fetch(`${API_BASE_URL}/user/login/`, {
@@ -311,7 +303,6 @@ export const api = {
   },
 }
 
-// ---- Profile Types & API ----
 export interface UserProfile {
   id: string
   email: string
@@ -357,7 +348,6 @@ export const profileApi = {
   },
 }
 
-// ---- Forgot Password API ----
 export const forgotPasswordApi = {
   async requestCode(email: string): Promise<{ detail: string }> {
     const res = await fetch(`${API_BASE_URL}/user/forgot-password/`, {

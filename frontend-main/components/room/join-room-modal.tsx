@@ -71,9 +71,7 @@ export function JoinRoomModal({ open, onOpenChange, onJoinSuccess, initialCode =
         <div className="p-8">
           <DialogHeader>
             <DialogTitle className="flex flex-col items-center gap-4 text-center">
-              {/* User/Guest photo + Arrow + Room icon */}
               <div className="flex items-center gap-3">
-                {/* User / Guest avatar with active dot */}
                 <div className="relative">
                   <div className="w-14 h-14 rounded-full overflow-hidden bg-gray-700 border-2 border-slate-600 flex items-center justify-center">
                     {profilePicture ? (
@@ -82,14 +80,11 @@ export function JoinRoomModal({ open, onOpenChange, onJoinSuccess, initialCode =
                       <User className="h-7 w-7 text-white/50" />
                     )}
                   </div>
-                  {/* Green active dot */}
                   <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-green-500 border-2 border-gray-950" />
                 </div>
 
-                {/* Arrow */}
                 <ArrowRight className="h-6 w-6 text-white/40" />
 
-                {/* Room icon */}
                 <div className="w-14 h-14 rounded-2xl bg-[#0F7C9D] flex items-center justify-center shadow-lg shadow-[#0F7C9D]/30">
                   <Users className="h-7 w-7 text-white" />
                 </div>

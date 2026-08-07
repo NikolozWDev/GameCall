@@ -87,9 +87,7 @@ export function RoomCreatedOverlay({ room, onEnterRoom }: RoomCreatedOverlayProp
       <div className="absolute inset-0 bg-black/80 backdrop-blur-md" />
 
       <div className="relative w-full max-w-sm bg-gray-950 border-2 border-slate-800 rounded-2xl p-8 text-center shadow-2xl shadow-[#0F7C9D]/10 animate-in zoom-in-95 duration-300">
-        {/* User/Guest photo + Arrow + Room icon */}
         <div className="flex items-center justify-center gap-3 mb-6">
-          {/* User / Guest avatar with active dot & admin badge */}
           <div className="relative">
             <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-700 border-2 border-slate-600 flex items-center justify-center">
               {profilePicture ? (
@@ -98,9 +96,7 @@ export function RoomCreatedOverlay({ room, onEnterRoom }: RoomCreatedOverlayProp
                 <User className="h-8 w-8 text-white/50" />
               )}
             </div>
-            {/* Green active dot */}
             <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-green-500 border-2 border-gray-950" />
-            {/* Admin badge */}
             {isAuthenticated && user && (
               <div className="absolute -top-1 -left-1 w-6 h-6 rounded-full bg-yellow-500 flex items-center justify-center shadow-lg border-2 border-gray-950">
                 <Crown className="h-3 w-3 text-black" />
@@ -108,10 +104,8 @@ export function RoomCreatedOverlay({ room, onEnterRoom }: RoomCreatedOverlayProp
             )}
           </div>
 
-          {/* Arrow */}
           <ArrowRight className="h-6 w-6 text-white/40" />
 
-          {/* Room icon */}
           <div className="w-16 h-16 rounded-2xl bg-[#0F7C9D] flex items-center justify-center shadow-lg shadow-[#0F7C9D]/30">
             <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
