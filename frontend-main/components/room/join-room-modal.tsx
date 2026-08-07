@@ -1,15 +1,15 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useAuth } from "@/lib/auth-context"
 import { api, APIError, type RoomJoinResponse } from "@/lib/api"
-import { Loader2, Users, User } from "lucide-react"
+import { profileApi } from "@/lib/api"
+import { Loader2, Users, User, ArrowRight } from "lucide-react"
 
 interface JoinRoomModalProps {
   open: boolean
@@ -19,42 +19,47 @@ interface JoinRoomModalProps {
 }
 
 export function JoinRoomModal({ open, onOpenChange, onJoinSuccess, initialCode = "" }: JoinRoomModalProps) {
-  const { user, guestName, setGuestName } = useAuth()
+  const { user, guestName, setGuestName, isAuthenticated } = useAuth()
   const [roomCode, setRoomCode] = useState(initialCode)
   const [tempGuestName, setTempGuestName] = useState(guestName || "")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [profilePicture, setProfilePicture] = useState<string | null>(null)
 
-  // Validation
   const isRoomCodeValid = /^[A-Za-z0-9_-]{6,10}$/.test(roomCode)
   const isGuestNameValid = tempGuestName.trim().length >= 2
   const needsGuestName = !user && !guestName
   const isFormValid = isRoomCodeValid && (user || guestName || isGuestNameValid)
 
+  const loadProfilePicture = useCallback(async () => {
+    if (!isAuthenticated) return
+    try {
+      const profile = await profileApi.getProfile()
+      setProfilePicture(profile.profile_picture_url)
+    } catch {}
+  }, [isAuthenticated])
+
+  useEffect(() => {
+    if (open) loadProfilePicture()
+  }, [open, loadProfilePicture])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!isFormValid) return
-
     setError("")
     setIsLoading(true)
-
     try {
-      // თუ guest-ია და ჯერ არ აქვს სახელი, შეინახოს
       let nameToUse = guestName
       if (!user && !guestName && isGuestNameValid) {
         setGuestName(tempGuestName.trim())
         nameToUse = tempGuestName.trim()
       }
-
       const roomData = await api.joinRoom(roomCode.toUpperCase(), nameToUse || tempGuestName.trim())
       onJoinSuccess(roomData)
       onOpenChange(false)
     } catch (err) {
-      if (err instanceof APIError) {
-        setError(err.message)
-      } else {
-        setError("Failed to join room")
-      }
+      if (err instanceof APIError) setError(err.message)
+      else setError("Failed to join room")
     } finally {
       setIsLoading(false)
     }
@@ -62,95 +67,117 @@ export function JoinRoomModal({ open, onOpenChange, onJoinSuccess, initialCode =
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Join Room
-          </DialogTitle>
-          <DialogDescription>Enter the 8-digit room code to join a voice call</DialogDescription>
-        </DialogHeader>
+      <DialogContent className="sm:max-w-md bg-gray-950 border-2 border-slate-800 rounded-xl p-0 gap-0">
+        <div className="p-8">
+          <DialogHeader>
+            <DialogTitle className="flex flex-col items-center gap-4 text-center">
+              {/* User/Guest photo + Arrow + Room icon */}
+              <div className="flex items-center gap-3">
+                {/* User / Guest avatar with active dot */}
+                <div className="relative">
+                  <div className="w-14 h-14 rounded-full overflow-hidden bg-gray-700 border-2 border-slate-600 flex items-center justify-center">
+                    {profilePicture ? (
+                      <img src={profilePicture} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <User className="h-7 w-7 text-white/50" />
+                    )}
+                  </div>
+                  {/* Green active dot */}
+                  <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-green-500 border-2 border-gray-950" />
+                </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {error && <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg">{error}</div>}
+                {/* Arrow */}
+                <ArrowRight className="h-6 w-6 text-white/40" />
 
-          <div className="space-y-2">
-            <Label htmlFor="roomCode">Room Code</Label>
-            <Input
-              id="roomCode"
-              type="text"
-              placeholder="ABCD1234"
-              value={roomCode}
-              onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-              maxLength={10}
-              className="text-center text-lg font-mono tracking-widest uppercase"
-              required
-            />
-            {roomCode && !isRoomCodeValid && <p className="text-xs text-red-500">Room code must be 6-10 characters</p>}
-          </div>
+                {/* Room icon */}
+                <div className="w-14 h-14 rounded-2xl bg-[#0F7C9D] flex items-center justify-center shadow-lg shadow-[#0F7C9D]/30">
+                  <Users className="h-7 w-7 text-white" />
+                </div>
+              </div>
+              <div>
+                <h2 className="text-white text-2xl font-bold">Join Room</h2>
+                <p className="text-white/50 text-sm mt-1">Enter the room code to join</p>
+              </div>
+            </DialogTitle>
+          </DialogHeader>
 
-          {/* Guest Name Input - მხოლოდ თუ არ არის დალოგინებული და არ აქვს შენახული სახელი */}
-          {needsGuestName && (
+          <form onSubmit={handleSubmit} className="space-y-5 mt-6">
+            {error && (
+              <div className="p-3 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg">{error}</div>
+            )}
+
             <div className="space-y-2">
-              <Label htmlFor="guestName" className="flex items-center gap-2">
-                <User className="h-4 w-4" />
-                Your Name
-              </Label>
+              <Label htmlFor="roomCode" className="text-white/70 text-sm font-medium">Room Code</Label>
               <Input
-                id="guestName"
+                id="roomCode"
                 type="text"
-                placeholder="Enter your name"
-                value={tempGuestName}
-                onChange={(e) => setTempGuestName(e.target.value)}
-                maxLength={50}
-                required
+                placeholder="Enter code"
+                value={roomCode}
+                onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                maxLength={10}
+                className="h-14 bg-gray-900 border-slate-700 text-white text-lg text-center font-mono tracking-[0.3em] uppercase rounded-lg focus:border-[#0F7C9D] focus:ring-2 focus:ring-[#0F7C9D]/20 placeholder:text-white/20"
               />
-              {tempGuestName && !isGuestNameValid && (
-                <p className="text-xs text-red-500">Name must be at least 2 characters</p>
+              {roomCode && !isRoomCodeValid && (
+                <p className="text-xs text-red-400">Room code must be 6-10 characters</p>
               )}
-              <p className="text-xs text-muted-foreground">This name will be saved and used for all future rooms</p>
             </div>
-          )}
 
-          {/* აჩვენე შენახული guest name */}
-          {!user && guestName && (
-            <div className="p-3 bg-muted rounded-lg">
-              <p className="text-sm">
-                Joining as: <span className="font-medium">{guestName}</span>
-              </p>
+            {needsGuestName && (
+              <div className="space-y-2">
+                <Label htmlFor="guestName" className="text-white/70 text-sm font-medium flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Your Name
+                </Label>
+                <Input
+                  id="guestName"
+                  type="text"
+                  placeholder="Enter your name"
+                  value={tempGuestName}
+                  onChange={(e) => setTempGuestName(e.target.value)}
+                  maxLength={50}
+                  className="h-12 bg-gray-900 border-slate-700 text-white rounded-lg focus:border-[#0F7C9D] focus:ring-2 focus:ring-[#0F7C9D]/20"
+                />
+                {tempGuestName && !isGuestNameValid && (
+                  <p className="text-xs text-red-400">Name must be at least 2 characters</p>
+                )}
+              </div>
+            )}
+
+            {!user && guestName && (
+              <div className="p-3 bg-gray-900 rounded-lg border border-slate-800">
+                <p className="text-sm text-white/70">
+                  Joining as: <span className="font-medium text-white">{guestName}</span>
+                </p>
+              </div>
+            )}
+
+            {user && (
+              <div className="p-3 bg-gray-900 rounded-lg border border-slate-800">
+                <p className="text-sm text-white/70">
+                  Joining as: <span className="font-medium text-white">{user.username}</span>
+                </p>
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-2">
+              <Button
+                type="button"
+                variant="ghost"
+                className="flex-1 h-12 text-white/60 border border-white/10 hover:bg-white/5 hover:text-white rounded-lg cursor-pointer"
+                onClick={() => onOpenChange(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="flex-1 h-12 bg-[#0F7C9D] hover:bg-[#0E6A87] text-white font-semibold rounded-lg cursor-pointer"
+                disabled={!isFormValid || isLoading}
+              >
+                {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Join Room"}
+              </Button>
             </div>
-          )}
-
-          {/* აჩვენე user-ის სახელი თუ დალოგინებულია */}
-          {user && (
-            <div className="p-3 bg-muted rounded-lg">
-              <p className="text-sm">
-                Joining as: <span className="font-medium">{user.username}</span>
-              </p>
-            </div>
-          )}
-
-          <div className="flex gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              className="flex-1 bg-transparent"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" className="flex-1" disabled={!isFormValid || isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Joining...
-                </>
-              ) : (
-                "Join Room"
-              )}
-            </Button>
-          </div>
-        </form>
+          </form>
+        </div>
       </DialogContent>
     </Dialog>
   )

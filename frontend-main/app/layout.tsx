@@ -3,6 +3,9 @@ import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { AuthProvider } from "@/lib/auth-context"
+import { SmoothScroll } from "@/components/smooth-scroll"
+import { Header } from "@/components/header"
+import { Footer } from "@/components/footer"
 import "./globals.css"
 
 const _geist = Geist({ subsets: ["latin"] })
@@ -13,21 +16,8 @@ export const metadata: Metadata = {
   description: "Create or join voice rooms instantly. Perfect for gaming, meetings, and hangouts.",
   generator: "v0.app",
   icons: {
-    icon: [
-      {
-        url: "/icon-light-32x32.png",
-        media: "(prefers-color-scheme: light)",
-      },
-      {
-        url: "/icon-dark-32x32.png",
-        media: "(prefers-color-scheme: dark)",
-      },
-      {
-        url: "/icon.svg",
-        type: "image/svg+xml",
-      },
-    ],
-    apple: "/apple-icon.png",
+    icon: "/gamecall-logo.png",
+    apple: "/gamecall-logo.png",
   },
 }
 
@@ -38,8 +28,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`font-sans antialiased`}>
-        <AuthProvider>{children}</AuthProvider>
+      <body className="font-sans antialiased bg-[#04070E]">
+        <AuthProvider>
+          <SmoothScroll />
+          <Header />
+          <main className="relative">{children}</main>
+          <Footer />
+        </AuthProvider>
         <Analytics />
       </body>
     </html>

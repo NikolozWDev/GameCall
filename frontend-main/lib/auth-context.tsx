@@ -43,7 +43,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     refreshUser()
-    // Load guest name from localStorage
     const savedGuestName = getGuestName()
     if (savedGuestName) {
       setGuestNameState(savedGuestName)
@@ -62,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     api.logout()
     setUser(null)
+    window.location.href = "/"
   }
 
   const handleSetGuestName = (name: string) => {

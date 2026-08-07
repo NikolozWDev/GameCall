@@ -186,9 +186,22 @@ TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
+# MEDIA FILES
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "mediafiles"
+
 # DEFAULTS
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 LIVEKIT_API_KEY = env("LIVEKIT_API_KEY")
 LIVEKIT_API_SECRET = env("LIVEKIT_API_SECRET")
 LIVEKIT_URL = env("LIVEKIT_URL")
+
+# EMAIL
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = "gigiashvilinikoloz@gmail.com"
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD")
+DEFAULT_FROM_EMAIL = "gigiashvilinikoloz@gmail.com"

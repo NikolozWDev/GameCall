@@ -1,247 +1,231 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, Suspense } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { LoginForm } from "@/components/auth/login-form"
 import { RegisterForm } from "@/components/auth/register-form"
+import { ForgotPasswordForm } from "@/components/auth/forgot-password-form"
+import { ResetPasswordForm } from "@/components/auth/reset-password-form"
 import { JoinRoomModal } from "@/components/room/join-room-modal"
 import { CreateRoomModal } from "@/components/room/create-room-modal"
 import { VoiceRoom } from "@/components/room/voice-room"
 import { useAuth } from "@/lib/auth-context"
 import type { RoomJoinResponse, Room } from "@/lib/api"
 import { api } from "@/lib/api"
-import { Phone, Users, Plus, LogOut, Loader2, Headphones, Shield, Zap } from "lucide-react"
+import { Users, ZapIcon, Loader2 } from "lucide-react"
+import { RoomCreatedOverlay } from "@/components/room/room-created-overlay"
 
-type AuthView = "none" | "login" | "register"
+type AuthView = "none" | "login" | "register" | "forgot" | "reset"
 
-export default function HomePage() {
-  const { user, guestName, isLoading, isAuthenticated, logout } = useAuth()
+function HomePageContent() {
+  const { user, isLoading, isAuthenticated } = useAuth()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [authView, setAuthView] = useState<AuthView>("none")
   const [showJoinModal, setShowJoinModal] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [activeRoom, setActiveRoom] = useState<RoomJoinResponse | null>(null)
   const [createdRoom, setCreatedRoom] = useState<Room | null>(null)
+  const [resetToken, setResetToken] = useState<string | null>(null)
+  const [registeredMessage, setRegisteredMessage] = useState(false)
 
-  // Handle room join success
+  useEffect(() => {
+    const auth = searchParams.get("auth")
+    const create = searchParams.get("create")
+    const join = searchParams.get("join")
+    const registered = searchParams.get("registered")
+
+    if (registered === "true") setRegisteredMessage(true)
+    if (auth === "login") setAuthView("login")
+    else if (auth === "register") setAuthView("register")
+    else if (auth === "forgot") setAuthView("forgot")
+    else if (auth === "reset" && searchParams.get("token")) {
+      setResetToken(searchParams.get("token"))
+      setAuthView("reset")
+    }
+    else setAuthView("none")
+
+    if (create === "true") setShowCreateModal(true)
+    if (join === "true") setShowJoinModal(true)
+  }, [searchParams])
+
   const handleJoinSuccess = (roomData: RoomJoinResponse) => {
     setActiveRoom(roomData)
     setCreatedRoom(null)
+    router.replace("/")
   }
 
-  // Handle room create success - auto join
   const handleCreateSuccess = async (room: Room) => {
     setCreatedRoom(room)
-    try {
-      const roomData = await api.joinRoom(room.room_code)
-      setActiveRoom(roomData)
-    } catch {
-      // Failed to auto-join, show the code
-    }
   }
 
-  // Handle leave room
   const handleLeaveRoom = () => {
     setActiveRoom(null)
     setCreatedRoom(null)
+    router.push("/")
   }
 
-  // Loading state
+  const handleLoginSuccess = () => {
+    router.replace("/")
+    setAuthView("none")
+  }
+
+  const handleRegisterSuccess = () => {
+    router.replace("/?auth=login&registered=true")
+    setAuthView("login")
+    setRegisteredMessage(true)
+  }
+
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="min-h-screen flex items-center justify-center bg-[#04070E]">
+        <Loader2 className="h-8 w-8 animate-spin text-[#0F7C9D]" />
       </div>
     )
   }
 
-  // Active voice room
   if (activeRoom) {
     return <VoiceRoom roomData={activeRoom} onLeave={handleLeaveRoom} />
   }
 
-  // Auth forms
   if (authView === "login") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <div className="w-full max-w-md">
-          <LoginForm onSuccess={() => setAuthView("none")} onRegisterClick={() => setAuthView("register")} />
-          <Button variant="ghost" className="w-full mt-4" onClick={() => setAuthView("none")}>
-            Back to Home
-          </Button>
-        </div>
-      </div>
+      <LoginForm
+        onSuccess={handleLoginSuccess}
+        onRegisterClick={() => { setAuthView("register"); router.replace("/?auth=register") }}
+        onForgotPassword={() => { setAuthView("forgot"); router.replace("/?auth=forgot") }}
+        successMessage={registeredMessage ? "Account created successfully! Please log in." : undefined}
+      />
     )
   }
 
   if (authView === "register") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <div className="w-full max-w-md">
-          <RegisterForm onSuccess={() => setAuthView("login")} onLoginClick={() => setAuthView("login")} />
-          <Button variant="ghost" className="w-full mt-4" onClick={() => setAuthView("none")}>
-            Back to Home
-          </Button>
-        </div>
-      </div>
+      <RegisterForm
+        onSuccess={handleRegisterSuccess}
+        onLoginClick={() => { setAuthView("login"); router.replace("/?auth=login") }}
+      />
     )
   }
 
-  // Main home page
+  if (authView === "forgot") {
+    return (
+      <ForgotPasswordForm
+        onBack={() => { setAuthView("login"); router.replace("/?auth=login") }}
+        onResetToken={(token) => { setResetToken(token); setAuthView("reset") }}
+      />
+    )
+  }
+
+  if (authView === "reset" && resetToken) {
+    return (
+      <ResetPasswordForm
+        token={resetToken}
+        onSuccess={() => {
+          setResetToken(null)
+          setAuthView("login")
+          router.replace("/?auth=login")
+        }}
+      />
+    )
+  }
+
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Phone className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold">GameCall</span>
-          </div>
+    <div className="min-h-screen bg-[#04070E] selection:bg-[#0F7C9D]/30 cursor-default">
+      <div className="bg-[#04070E]">
+        <section className="w-full h-[55vh] md:h-[65vh] relative mt-0 pt-0 overflow-hidden group">
+          <img
+            src="/banner.jpg"
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover scale-105 group-hover:scale-110 transition-transform duration-[2s] ease-out animate-banner-drift"
+          />
+          <div className="absolute inset-0 bg-black/40" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-[#04070E]" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#0F7C9D]/20 via-transparent to-[#5DAEC4]/20 animate-gradient-shift pointer-events-none" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_20%,rgba(15,124,157,0.3),transparent_50%)] animate-glow-pulse pointer-events-none" />
+          <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-[#04070E] via-[#04070E]/80 to-transparent pointer-events-none" />
 
-          <div className="flex items-center gap-3">
-            {isAuthenticated ? (
-              <>
-                <span className="text-sm text-muted-foreground">
-                  Welcome, <span className="font-medium text-foreground">{user?.username}</span>
-                </span>
-                <Button variant="ghost" size="sm" onClick={logout}>
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Logout
-                </Button>
-              </>
-            ) : guestName ? (
-              <span className="text-sm text-muted-foreground">
-                Guest: <span className="font-medium text-foreground">{guestName}</span>
-              </span>
-            ) : (
-              <>
-                <Button variant="ghost" size="sm" onClick={() => setAuthView("login")}>
-                  Sign In
-                </Button>
-                <Button size="sm" onClick={() => setAuthView("register")}>
-                  Sign Up
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
-
-      {/* Hero Section */}
-      <main className="container mx-auto px-4 py-12">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4 text-balance">Voice Calls Made Simple</h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto text-pretty">
-            Create or join voice rooms instantly. No downloads required. Perfect for gaming, meetings, and hangouts.
-          </p>
-        </div>
-
-        {/* Action Cards */}
-        <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto mb-16">
-          {/* Join Room Card */}
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setShowJoinModal(true)}>
-            <CardHeader>
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                <Users className="h-6 w-6 text-primary" />
-              </div>
-              <CardTitle>Join Room</CardTitle>
-              <CardDescription>Enter an 8-digit code to join an existing voice room</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button className="w-full" size="lg">
-                <Users className="mr-2 h-5 w-5" />
-                Join with Code
+          <div className="relative z-10 container mx-auto max-w-6xl px-4 md:px-8 h-full flex flex-col items-center justify-center text-center">
+            <h1 className="text-4xl md:text-6xl font-extrabold mb-6 leading-tight tracking-tight animate-fade-in-up drop-shadow-2xl">
+              <span className="text-white">Instant Private</span>
+              <br />
+              <span className="text-white">Voice Rooms for </span>
+              <span className="text-[#5DAEC4] drop-shadow-[0_0_20px_rgba(93,174,196,0.5)]">Gamers</span>
+            </h1>
+            <p className="text-white/90 text-sm md:text-base max-w-md mx-auto mb-8 leading-relaxed animate-fade-in-up animation-delay-200 drop-shadow-lg">
+              Create a room in seconds. Share a link. Talk instantly. No downloads.
+            </p>
+            <div className="flex items-center justify-center gap-4 animate-fade-in-up animation-delay-400">
+              <Button
+                size="lg"
+                className="bg-[#0F7C9D] hover:bg-[#0E6A87] text-white px-7 py-5 text-base font-semibold rounded-xl shadow-xl shadow-[#0F7C9D]/40 hover:shadow-2xl hover:shadow-[#0F7C9D]/50 active:scale-95 cursor-pointer transition-all duration-300"
+                onClick={() => isAuthenticated ? setShowCreateModal(true) : setAuthView("login")}
+              >
+                <ZapIcon className="h-5 w-5 mr-2" />
+                Create Room
               </Button>
-            </CardContent>
-          </Card>
+              <Button
+                size="lg"
+                className="bg-[#5DAEC4]/20 text-white border border-[#5DAEC4]/60 shadow-lg shadow-[#5DAEC4]/30 hover:bg-[#0F7C9D] hover:text-white hover:border-[#0F7C9D] hover:shadow-xl hover:shadow-[#0F7C9D]/40 px-7 py-5 text-base font-semibold rounded-xl active:scale-95 cursor-pointer transition-all duration-300"
+                onClick={() => setShowJoinModal(true)}
+              >
+                <Users className="h-5 w-5 mr-2" />
+                Join Room
+              </Button>
+            </div>
+          </div>
+        </section>
+      </div>
 
-          {/* Create Room Card - Only for authenticated users */}
-          <Card
-            className={`transition-shadow ${isAuthenticated ? "hover:shadow-lg cursor-pointer" : "opacity-60"}`}
-            onClick={() => isAuthenticated && setShowCreateModal(true)}
-          >
-            <CardHeader>
-              <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center mb-4">
-                <Plus className="h-6 w-6 text-green-600" />
+      <div className="container mx-auto max-w-6xl px-4 md:px-8 pb-16">
+        <div className="grid md:grid-cols-3 gap-5 mb-16 relative z-20">
+          {[
+            { title: "Ultra-fast room creation", desc: "Create your private voice room instantly and start talking in seconds", img: "/cont1.png", bg: "#040E1C", border: "#1A2540" },
+            { title: "Low-latency voice", desc: "Crystal-clear voice with ultra-low latency for the best gaming communication", img: "/cont2.png", bg: "#040D1B", border: "#1A2440" },
+            { title: "Shareable links & guest access", desc: "Share a link with your squad. Guests can join instantly without an account", img: "/cont3.png", bg: "#050B1A", border: "#1A2540" },
+          ].map((feature, i) => (
+            <div
+              key={i}
+              className="p-6 rounded-2xl border text-center flex flex-col items-center gap-4 hover:scale-[1.02] hover:shadow-lg hover:shadow-[#0F7C9D]/5 transition-all duration-300"
+              style={{ backgroundColor: feature.bg, borderColor: feature.border }}
+            >
+              <div className="w-16 h-16 rounded-full overflow-hidden flex items-center justify-center bg-[#0A0F1C] ring-2 ring-[#0F7C9D]/30">
+                <img src={feature.img} alt="" className="w-full h-full object-cover" />
               </div>
-              <CardTitle>Create Room</CardTitle>
-              <CardDescription>
-                {isAuthenticated
-                  ? "Start a new voice room and invite others"
-                  : "Sign in to create your own voice rooms"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isAuthenticated ? (
-                <Button className="w-full" size="lg" variant="secondary">
-                  <Plus className="mr-2 h-5 w-5" />
-                  Create New Room
-                </Button>
-              ) : (
-                <Button
-                  className="w-full bg-transparent"
-                  size="lg"
-                  variant="outline"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setAuthView("login")
-                  }}
-                >
-                  Sign In to Create
-                </Button>
-              )}
-            </CardContent>
-          </Card>
+              <h3 className="font-semibold text-base text-white">{feature.title}</h3>
+              <p className="text-sm text-white/70 leading-relaxed max-w-[220px]">{feature.desc}</p>
+            </div>
+          ))}
         </div>
 
-        {/* Created Room Info */}
         {createdRoom && !activeRoom && (
-          <Card className="max-w-md mx-auto mb-8 border-green-500/30 bg-green-500/5">
-            <CardHeader>
-              <CardTitle className="text-green-600">Room Created!</CardTitle>
-              <CardDescription>Share this code with others to join</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center">
-                <p className="text-3xl font-mono font-bold tracking-widest mb-4">{createdRoom.room_code}</p>
-                <Button onClick={() => api.joinRoom(createdRoom.room_code).then(setActiveRoom)}>Enter Room</Button>
-              </div>
-            </CardContent>
-          </Card>
+          <RoomCreatedOverlay
+            room={createdRoom}
+            onEnterRoom={async () => {
+              try {
+                const roomData = await api.joinRoom(createdRoom.room_code)
+                setActiveRoom(roomData)
+              } catch {}
+            }}
+          />
         )}
+      </div>
 
-        {/* Features */}
-        <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-          <div className="text-center">
-            <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center mx-auto mb-4">
-              <Headphones className="h-6 w-6 text-blue-600" />
-            </div>
-            <h3 className="font-semibold mb-2">Crystal Clear Audio</h3>
-            <p className="text-sm text-muted-foreground">Powered by LiveKit for low-latency, high-quality voice</p>
-          </div>
-
-          <div className="text-center">
-            <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-4">
-              <Shield className="h-6 w-6 text-green-600" />
-            </div>
-            <h3 className="font-semibold mb-2">Secure & Private</h3>
-            <p className="text-sm text-muted-foreground">End-to-end encrypted rooms with unique access codes</p>
-          </div>
-
-          <div className="text-center">
-            <div className="w-12 h-12 rounded-full bg-orange-500/10 flex items-center justify-center mx-auto mb-4">
-              <Zap className="h-6 w-6 text-orange-600" />
-            </div>
-            <h3 className="font-semibold mb-2">Instant Access</h3>
-            <p className="text-sm text-muted-foreground">No downloads or installations. Works in your browser</p>
-          </div>
-        </div>
-      </main>
-
-      {/* Modals */}
-      <JoinRoomModal open={showJoinModal} onOpenChange={setShowJoinModal} onJoinSuccess={handleJoinSuccess} />
-
-      <CreateRoomModal open={showCreateModal} onOpenChange={setShowCreateModal} onCreateSuccess={handleCreateSuccess} />
+      <JoinRoomModal open={showJoinModal} onOpenChange={(open) => { setShowJoinModal(open); if (!open) router.replace("/") }} onJoinSuccess={handleJoinSuccess} />
+      <CreateRoomModal open={showCreateModal} onOpenChange={(open) => { setShowCreateModal(open); if (!open) router.replace("/") }} onCreateSuccess={handleCreateSuccess} />
     </div>
+  )
+}
+
+export default function HomePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-[#04070E]">
+        <Loader2 className="h-8 w-8 animate-spin text-[#0F7C9D]" />
+      </div>
+    }>
+      <HomePageContent />
+    </Suspense>
   )
 }

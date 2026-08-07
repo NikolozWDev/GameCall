@@ -123,3 +123,117 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* globals.css */
+
+/* Smooth Scroll */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(15, 124, 157, 0.3);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 124, 157, 0.6);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(15, 124, 157, 0.3) transparent;
+}
+
+/* Lenis Smooth Scroll Override */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+.lenis.lenis-scrolling iframe {
+  pointer-events: none;
+}
+
+@keyframes banner-drift {
+  0%, 100% { transform: scale(1.05) translate(0, 0); }
+  25% { transform: scale(1.08) translate(-1%, 0.5%); }
+  50% { transform: scale(1.06) translate(0.5%, -0.5%); }
+  75% { transform: scale(1.07) translate(-0.5%, 1%); }
+}
+
+@keyframes gradient-shift {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-banner-drift {
+  animation: banner-drift 12s ease-in-out infinite;
+}
+
+.animate-gradient-shift {
+  animation: gradient-shift 4s ease-in-out infinite;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.8s ease-out forwards;
+}
+
+.animation-delay-200 {
+  animation-delay: 200ms;
+}
+
+.animation-delay-400 {
+  animation-delay: 400ms;
+}
+/* Fix Radix Dialog scroll lock interfering with inner scroll */
+body[data-scroll-locked] {
+  overflow: hidden !important;
+  pointer-events: auto !important;
+  padding-right: 0 !important;
+}
+
+/* Allow scroll inside dialog content */
+[data-radix-dialog-content] {
+  pointer-events: auto;
+}
