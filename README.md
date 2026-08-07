@@ -137,6 +137,8 @@ The platform is intended to grow without losing the simplicity that defines it t
 
 ## Gallery
 
-<img src="/gallery/first1.png" alt="GameCall Screenshot 1" width="600">
-<img src="/gallery/second2.png" alt="GameCall Screenshot 2" width="600">
-<img src="/gallery/third3.png" alt="GameCall Screenshot 3" width="600">
+<img src="frontend-main/public/gallery/first1.png" alt="GameCall Screenshot 1" width="900">
+
+<img src="frontend-main/public/gallery/second2.png" alt="GameCall Screenshot 2" width="900">
+
+<img src="frontend-main/public/gallery/third3.png" alt="GameCall Screenshot 3" width="900">
