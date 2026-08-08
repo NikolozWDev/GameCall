@@ -388,3 +388,33 @@ export const forgotPasswordApi = {
     return res.json()
   }
 }
+export interface ChatMessage {
+  id: string
+  identity: string
+  display_name: string
+  text: string
+  created_at: string
+}
+
+export const chatApi = {
+  async fetchMessages(roomId: string): Promise<ChatMessage[]> {
+    const res = await fetchWithAuth(`/rooms/${roomId}/messages/`)
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new APIError(err.detail || "Failed to load messages", res.status, err)
+    }
+    return res.json()
+  },
+
+  async sendMessage(roomId: string, identity: string, displayName: string, text: string): Promise<ChatMessage> {
+    const res = await fetchWithAuth(`/rooms/${roomId}/messages/`, {
+      method: "POST",
+      body: JSON.stringify({ identity, display_name: displayName, text }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new APIError(err.detail || "Failed to send message", res.status, err)
+    }
+    return res.json()
+  },
+}

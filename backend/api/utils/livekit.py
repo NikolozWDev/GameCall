@@ -3,6 +3,12 @@ from django.conf import settings
 
 
 def generate_livekit_token(room_name, identity, name=None, is_admin=False, can_publish=True):
+    print(f"DEBUG: LIVEKIT_API_KEY = {settings.LIVEKIT_API_KEY[:10]}...")
+    print(f"DEBUG: room_name = {room_name}, identity = {identity}")
+    
+    if not room_name or not identity:
+        raise ValueError(f"room_name and identity are required. room_name={room_name}, identity={identity}")
+    
     token = (
         AccessToken(
             settings.LIVEKIT_API_KEY,
@@ -21,4 +27,6 @@ def generate_livekit_token(room_name, identity, name=None, is_admin=False, can_p
             can_publish_data=True,
         )
     )
-    return token.to_jwt()
+    jwt_token = token.to_jwt()
+    print(f"DEBUG: Token first 80 chars: {jwt_token[:80]}...")
+    return jwt_token

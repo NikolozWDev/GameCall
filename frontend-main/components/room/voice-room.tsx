@@ -2,52 +2,50 @@
 
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
 import {
-  LiveKitRoom,
-  RoomAudioRenderer,
-  useParticipants,
-  useLocalParticipant,
-  useRoomContext,
+  LiveKitRoom, RoomAudioRenderer,
+  useParticipants, useLocalParticipant, useRoomContext,
 } from "@livekit/components-react"
 import "@livekit/components-styles"
 import {
-  Mic,
-  MicOff,
-  Phone,
-  Users,
-  Copy,
-  Check,
-  Crown,
-  Volume2,
-  VolumeX,
-  MicOffIcon,
-  Clock,
-  Settings,
-  ChevronDown,
-  User,
-  AlertTriangle,
+  Mic, MicOff, Phone, Users, Copy, Check, Crown,
+  Volume2, VolumeX, MicOffIcon, Clock, Settings, ChevronDown,
+  AlertTriangle, MessageSquare, Send,
 } from "lucide-react"
-import type { RoomJoinResponse } from "@/lib/api"
-import { getAccessToken } from "@/lib/api"
+import type { RoomJoinResponse, ChatMessage } from "@/lib/api"
+import { getAccessToken, chatApi } from "@/lib/api"
 
-interface VoiceRoomProps {
-  roomData: RoomJoinResponse
-  onLeave: () => void
-}
+interface VoiceRoomProps { roomData: RoomJoinResponse; onLeave: () => void }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api"
 
 async function fetchWithAuth(endpoint: string, options: RequestInit = {}) {
-  const headers: HeadersInit = {
-    "Content-Type": "application/json",
-    ...options.headers,
-  }
+  const headers: HeadersInit = { "Content-Type": "application/json", ...options.headers }
   const token = getAccessToken()
-  if (token) {
-    ;(headers as Record<string, string>)["Authorization"] = `Bearer ${token}`
-  }
+  if (token) (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`
   return fetch(`${API_BASE}${endpoint}`, { ...options, headers })
+}
+
+const getGridClass = (count: number) => {
+  if (count === 1) return "grid-cols-1 max-w-2xl"
+  if (count === 2) return "grid-cols-2 max-w-4xl"
+  if (count === 3) return "grid-cols-3 max-w-5xl"
+  if (count <= 4) return "grid-cols-2 max-w-5xl"
+  if (count <= 6) return "grid-cols-3 max-w-6xl"
+  if (count <= 9) return "grid-cols-3 max-w-7xl"
+  return "grid-cols-4 max-w-7xl"
+}
+
+const PHOTOS = [
+  "/photos/1.webp", "/photos/2.jpg", "/photos/3.jpg", "/photos/4.jpeg",
+  "/photos/5.webp", "/photos/6.jpg", "/photos/7.avif", "/photos/8.jpg",
+  "/photos/9.jfif", "/photos/10.jfif", "/photos/11.avif",
+]
+
+function getRandomPhoto(current?: string) {
+  let next = PHOTOS[Math.floor(Math.random() * PHOTOS.length)]
+  if (PHOTOS.length > 1 && current) while (next === current) next = PHOTOS[Math.floor(Math.random() * PHOTOS.length)]
+  return next
 }
 
 function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
@@ -61,34 +59,65 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
   const [elapsed, setElapsed] = useState("00:00:00")
   const [adminMenuOpen, setAdminMenuOpen] = useState(false)
   const adminMenuRef = useRef<HTMLDivElement>(null)
+  const [volumes, setVolumes] = useState<Record<string, number>>({})
+  const [showChat, setShowChat] = useState(false)
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [chatInput, setChatInput] = useState("")
+  const chatEndRef = useRef<HTMLDivElement>(null)
+  const chatInputRef = useRef<HTMLTextAreaElement>(null)
+
+  const [currentBg, setCurrentBg] = useState(() => getRandomPhoto())
+  const [nextBg, setNextBg] = useState<string | null>(null)
+  const currentBgRef = useRef(currentBg)
+  useEffect(() => { currentBgRef.current = currentBg }, [currentBg])
 
   useEffect(() => {
-    if (roomData.room_code) {
-      window.history.replaceState(null, "", `/room/${roomData.room_code}`)
-    }
-  }, [roomData.room_code])
+    const interval = setInterval(() => {
+      const next = getRandomPhoto(currentBgRef.current)
+      setNextBg(next)
+      setTimeout(() => {
+        setCurrentBg(next)
+        currentBgRef.current = next
+        setNextBg(null)
+      }, 1200)
+    }, 8000)
+    return () => clearInterval(interval)
+  }, [])
 
   const participantPictures: Record<string, string | null> = {}
-  if (roomData.participants) {
-    for (const p of roomData.participants) {
-      participantPictures[p.display_name] = p.profile_picture_url
-    }
-  }
-
+  if (roomData.participants) for (const p of roomData.participants) participantPictures[p.display_name] = p.profile_picture_url
   const isAdmin = roomData.livekit.is_admin
+
+  useEffect(() => { chatApi.fetchMessages(roomData.id).then(setMessages).catch(console.error) }, [roomData.id])
+
+  useEffect(() => {
+    if (!room) return
+    const handler = (payload: Uint8Array) => {
+      try {
+        const msg = JSON.parse(new TextDecoder().decode(payload))
+        if (msg.type === "chat") {
+          setMessages(prev => [...prev, { id: Date.now().toString(), identity: msg.identity, display_name: msg.display_name, text: msg.text, created_at: new Date().toISOString() }])
+          setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50)
+        } else if (msg.type === "mute" && msg.targetIdentity === localParticipant?.identity) {
+          localParticipant?.setMicrophoneEnabled(false)
+          setIsMuted(true)
+        } else if (msg.type === "mute-all" && !isAdmin) {
+          localParticipant?.setMicrophoneEnabled(false)
+          setIsMuted(true)
+        }
+      } catch {}
+    }
+    room.on("dataReceived", handler)
+    return () => { room.off("dataReceived", handler) }
+  }, [room, localParticipant, isAdmin])
+
+  useEffect(() => { if (roomData.room_code) window.history.replaceState(null, "", `/room/${roomData.room_code}`) }, [roomData.room_code])
 
   useEffect(() => {
     if (localParticipant) {
       localParticipant.setMicrophoneEnabled(false).catch(console.error)
-      navigator.mediaDevices
-        .getUserMedia({ audio: true })
-        .then((stream) => {
-          stream.getTracks().forEach((track) => track.stop())
-          setMicError(null)
-        })
-        .catch(() => {
-          setMicError("Microphone not available. You can still listen.")
-        })
+      navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => { stream.getTracks().forEach(t => t.stop()); setMicError(null) })
+        .catch(() => setMicError("Microphone not available. You can still listen."))
     }
   }, [localParticipant])
 
@@ -96,301 +125,217 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
     const start = new Date(roomData.created_at).getTime()
     const timer = setInterval(() => {
       const diff = Math.floor((Date.now() - start) / 1000)
-      const h = Math.floor(diff / 3600).toString().padStart(2, "0")
-      const m = Math.floor((diff % 3600) / 60).toString().padStart(2, "0")
-      const s = (diff % 60).toString().padStart(2, "0")
-      setElapsed(`${h}:${m}:${s}`)
+      setElapsed(`${Math.floor(diff/3600).toString().padStart(2,"0")}:${Math.floor((diff%3600)/60).toString().padStart(2,"0")}:${(diff%60).toString().padStart(2,"0")}`)
     }, 1000)
     return () => clearInterval(timer)
   }, [roomData.created_at])
 
   useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (adminMenuRef.current && !adminMenuRef.current.contains(e.target as Node)) {
-        setAdminMenuOpen(false)
-      }
-    }
+    const handleClick = (e: MouseEvent) => { if (adminMenuRef.current && !adminMenuRef.current.contains(e.target as Node)) setAdminMenuOpen(false) }
     if (adminMenuOpen) document.addEventListener("mousedown", handleClick)
     return () => document.removeEventListener("mousedown", handleClick)
   }, [adminMenuOpen])
 
+  useEffect(() => {
+    if (chatInputRef.current) {
+      chatInputRef.current.style.height = "auto"
+      chatInputRef.current.style.height = `${Math.min(chatInputRef.current.scrollHeight, 160)}px`
+    }
+  }, [chatInput])
+
   const toggleMute = useCallback(async () => {
     if (!localParticipant) return
-    try {
-      await localParticipant.setMicrophoneEnabled(isMuted)
-      setIsMuted(!isMuted)
-    } catch (err) {
-      console.error("Mic toggle failed:", err)
-    }
+    try { await localParticipant.setMicrophoneEnabled(isMuted); setIsMuted(!isMuted) } catch (err) { console.error("Mic toggle failed:", err) }
   }, [localParticipant, isMuted])
 
   const handleLeave = useCallback(async () => {
-    try {
-      await room.disconnect()
-    } catch (err) {
-      console.error("Disconnect failed:", err)
-    }
-    router.push("/")
-    onLeave()
+    try { await room.disconnect() } catch {}
+    router.push("/"); onLeave()
   }, [room, onLeave, router])
 
   const copyRoomCode = () => {
-    navigator.clipboard.writeText(`gamecall.com/room/${roomData.room_code}`)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    navigator.clipboard.writeText(`game-call.vercel.app/room/${roomData.room_code}`)
+    setCopied(true); setTimeout(() => setCopied(false), 2000)
   }
 
-  const muteAll = async () => {
-    try {
-      await fetchWithAuth(`/rooms/${roomData.id}/mute-all/`, { method: "POST" })
-      setAdminMenuOpen(false)
-    } catch (err) {
-      console.error("Mute all failed:", err)
-    }
+  const muteParticipant = useCallback(async (identity: string) => {
+    fetchWithAuth(`/rooms/${roomData.id}/mute/`, { method: "POST", body: JSON.stringify({ identity }) }).catch(console.error)
+    if (room.localParticipant) await room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({ type: "mute", targetIdentity: identity })), { reliable: true })
+  }, [room, roomData.id])
+
+  const muteAll = useCallback(async () => {
+    fetchWithAuth(`/rooms/${roomData.id}/mute-all/`, { method: "POST" }).catch(console.error)
+    if (room.localParticipant) await room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({ type: "mute-all" })), { reliable: true })
+    setAdminMenuOpen(false)
+  }, [room, roomData.id])
+
+  const disconnectParticipant = async (identity: string) => {
+    try { await fetchWithAuth(`/rooms/${roomData.id}/disconnect/`, { method: "POST", body: JSON.stringify({ identity }) }) }
+    catch (err) { console.error("Disconnect participant failed:", err) }
   }
 
   const endRoom = async () => {
     if (!window.confirm("Are you sure you want to end this room for everyone?")) return
     try {
       await fetchWithAuth(`/rooms/${roomData.id}/end/`, { method: "POST" })
-      setAdminMenuOpen(false)
-      router.push("/")
-      onLeave()
-    } catch (err) {
-      console.error("End room failed:", err)
-    }
+      setAdminMenuOpen(false); router.push("/"); onLeave()
+    } catch (err) { console.error("End room failed:", err) }
   }
 
-  const muteParticipant = async (identity: string) => {
+  const handleVolumeChange = useCallback((identity: string, value: number) => {
+    setVolumes(prev => ({ ...prev, [identity]: value }))
+    const p = participants.find(pp => pp.identity === identity)
+    if (p && p.audioTrack) p.audioTrack.setVolume(value / 100)
+  }, [participants])
+
+  useEffect(() => { participants.forEach(p => { if (!volumes[p.identity]) setVolumes(prev => ({ ...prev, [p.identity]: 100 })) }) }, [participants, volumes])
+
+  const handleSendMessage = async () => {
+    const text = chatInput.trim(); if (!text) return
+    const identity = localParticipant?.identity || roomData.participants?.[0]?.identity || `guest-${Date.now()}`
+    const displayName = localParticipant?.name || roomData.participants?.[0]?.display_name || "Guest"
+    try { await chatApi.sendMessage(roomData.id, identity, displayName, text) } catch (err) { console.error("Failed to save message:", err); return }
     try {
-      await fetchWithAuth(`/rooms/${roomData.id}/mute/`, {
-        method: "POST",
-        body: JSON.stringify({ identity }),
-      })
-    } catch (err) {
-      console.error("Mute participant failed:", err)
-    }
+      if (room.localParticipant) await room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({ type: "chat", identity, display_name: displayName, text })), { reliable: true })
+    } catch (err) { console.warn("Data channel send failed:", err) }
+    setChatInput(""); if (chatInputRef.current) chatInputRef.current.style.height = "auto"
   }
 
-  const disconnectParticipant = async (identity: string) => {
-    try {
-      await fetchWithAuth(`/rooms/${roomData.id}/disconnect/`, {
-        method: "POST",
-        body: JSON.stringify({ identity }),
-      })
-    } catch (err) {
-      console.error("Disconnect participant failed:", err)
-    }
-  }
+  const handleKeyDown = (e: React.KeyboardEvent) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendMessage() } }
+  const toggleChat = () => setShowChat(prev => !prev)
 
   return (
-    <div className="h-screen bg-[#04070E] flex flex-col overflow-hidden">
-      <div className="bg-gray-950/80 backdrop-blur-md border-b border-slate-800 px-6 py-3 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center">
-              <img src="/gamecall-logo.png" alt="GameCall" className="w-6 h-6 object-contain" />
-            </div>
-            <span className="text-white font-bold text-sm">GameCall</span>
-          </div>
-          <div className="h-6 w-px bg-slate-700" />
-          <div className="text-sm flex items-center gap-2">
-            <span className="text-white/40 text-xs">Room ID:</span>
-            <div className="flex items-center gap-2 bg-gray-900/80 border border-slate-700 rounded-lg px-3 py-1.5">
-              <span className="text-white/80 font-mono text-sm font-semibold tracking-wider">{roomData.room_code}</span>
-              <button onClick={copyRoomCode} className="text-white/50 hover:text-white transition-colors ml-1">
-                {copied ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
-              </button>
-            </div>
-            {copied && (
-              <span className="text-green-400 text-xs animate-in fade-in">Copied!</span>
-            )}
-          </div>
-          <div className="h-6 w-px bg-slate-700" />
-          <div className="flex items-center gap-1.5 text-sm">
-            <Clock className="h-4 w-4 text-white/40" />
-            <span className="text-white/80 font-mono text-xs">{elapsed}</span>
-          </div>
-          <div className="h-6 w-px bg-slate-700" />
-          <div className="flex items-center gap-1.5 text-sm">
-            <Users className="h-4 w-4 text-white/40" />
-            <span className="text-white/80 text-xs">{participants.length}</span>
+    <div className="h-screen flex flex-col overflow-hidden bg-[#04070E]">
+      {/* Top Bar */}
+      <div className="relative z-30 shrink-0 bg-gray-950/90 backdrop-blur-md border-b border-slate-800 px-6 py-3 flex items-center gap-6">
+        <div className="flex items-center gap-3">
+          <img src="/gamecall-logo.png" className="w-6 h-6" />
+          <div className="flex flex-col">
+            <span className="text-white font-bold text-sm">{roomData.name}</span>
+            <span className="text-white/40 text-xs">Hosted by {roomData.creator.username}</span>
           </div>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-red-400/70 hover:text-red-400 hover:bg-red-500/10 border border-red-500/20 h-8 text-xs"
-          onClick={handleLeave}
-        >
-          <Phone className="h-3.5 w-3.5 mr-1.5 rotate-135" />
-          Leave Room
-        </Button>
+        <div className="h-8 w-px bg-slate-700" />
+        <div className="flex items-center gap-2 bg-gray-900/80 border border-slate-700 rounded-lg px-3 py-1.5 cursor-pointer hover:border-slate-600" onClick={copyRoomCode}>
+          <span className="text-[#0F7C9D] font-mono text-xs font-semibold truncate max-w-[200px]">game-call.vercel.app/room/{roomData.room_code}</span>
+          {copied ? <Check className="h-3.5 w-3.5 text-green-400 shrink-0" /> : <Copy className="h-3.5 w-3.5 text-white/40 shrink-0" />}
+        </div>
+        {copied && <span className="text-green-400 text-xs">Copied!</span>}
+        <div className="ml-auto flex items-center gap-4">
+          <Clock className="h-4 w-4 text-white/40" /><span className="text-white/80 font-mono text-xs">{elapsed}</span>
+          <Users className="h-4 w-4 text-white/40" /><span className="text-white/80 text-xs">{participants.length}</span>
+        </div>
       </div>
 
-      {micError && (
-        <div className="bg-red-500/10 border-b border-red-500/20 px-4 py-2 flex items-center gap-2 text-red-400 text-xs">
-          <AlertTriangle className="h-4 w-4" />
-          {micError}
+      {micError && <div className="relative z-30 shrink-0 bg-red-500/10 border-b border-red-500/20 px-4 py-2 flex items-center gap-2 text-red-400 text-xs"><AlertTriangle className="h-4 w-4" />{micError}</div>}
+
+      {/* Main Content */}
+      <div className="relative min-h-0 flex-1 overflow-hidden">
+        {/* Background crossfade */}
+        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+          <img src={currentBg} aria-hidden="true"
+            className={`absolute inset-[-20px] h-[calc(100%+40px)] w-[calc(100%+40px)] object-cover object-center blur-[10px] scale-105 transition-opacity duration-[1200ms] ease-in-out ${nextBg ? "opacity-0" : "opacity-100"}`} />
+          {nextBg && (
+            <img src={nextBg} aria-hidden="true"
+              className="absolute inset-[-20px] h-[calc(100%+40px)] w-[calc(100%+40px)] object-cover object-center blur-[10px] scale-105 opacity-100 transition-opacity duration-[1200ms] ease-in-out" />
+          )}
+          <div className="absolute inset-0 bg-[#080B16]/65" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40" />
         </div>
-      )}
 
-      <div className="flex-1 flex overflow-hidden">
-        <aside className="w-72 border-r border-slate-800 bg-gray-950/50 flex flex-col">
-          <div className="px-4 py-3 border-b border-slate-800">
-            <h3 className="text-white/70 text-xs font-semibold uppercase tracking-wider">Participants</h3>
-          </div>
-          <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
-            {participants.map((p) => {
-              const isLocal = p.identity === localParticipant?.identity
-              const isSpeaking = p.isSpeaking
-              const isMuted = !p.isMicrophoneEnabled
-              const isAdminUser = p.permissions?.canPublish
-              const profilePic = participantPictures[p.name || ""]
-
-              return (
-                <div
-                  key={p.sid || p.identity || p.name}
-                  className={`flex items-center gap-3 p-2.5 rounded-lg transition-all duration-300 group ${
-                    isSpeaking
-                      ? "bg-green-500/10 ring-1 ring-green-500/30 shadow-[0_0_10px_rgba(34,197,94,0.3)]"
-                      : "bg-gray-900/50 hover:bg-gray-900"
-                  }`}
-                >
-                  <div className="relative">
-                    <div className="w-9 h-9 rounded-full overflow-hidden shrink-0 ring-2 ring-offset-1 ring-offset-gray-950 transition-all duration-300"
-                      style={{
-                        ringColor: isSpeaking ? "rgb(34,197,94)" : "transparent",
-                      }}
-                    >
-                      {profilePic ? (
-                        <img src={profilePic} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <div
-                          className={`w-full h-full rounded-full flex items-center justify-center text-xs font-bold ${
-                            isSpeaking ? "bg-green-500 text-white" : "bg-gray-700 text-white/80"
-                          }`}
-                        >
-                          {p.name?.charAt(0).toUpperCase() || <User className="h-4 w-4" />}
+        {/* Actual content */}
+        <div className="relative z-10 flex h-full min-h-0 w-full overflow-hidden">
+          <main className="relative min-w-0 flex-1 overflow-auto">
+            <div className="flex min-h-full w-full items-center justify-center p-4 md:p-8">
+              <div className={`w-full grid gap-4 auto-rows-fr ${getGridClass(participants.length)}`}>
+                {participants.map(p => {
+                  const isLocal = p.identity === localParticipant?.identity
+                  const isSpeaking = p.isSpeaking, isMuted = !p.isMicrophoneEnabled, isAdminUser = p.permissions?.canPublish
+                  const profilePic = participantPictures[p.name || ""], vol = volumes[p.identity] ?? 100
+                  return (
+                    <div key={p.sid || `${p.identity}-${p.name}`}
+                      className={`relative min-h-[180px] bg-[#252538]/55 backdrop-blur-sm rounded-2xl overflow-hidden border transition-all duration-300 group flex flex-col items-center justify-center p-6 ${isSpeaking ? "border-green-400 ring-2 ring-green-400/40 shadow-[0_0_30px_rgba(34,197,94,0.25)]" : "border-white/5 hover:border-white/10"}`}>
+                      {isAdmin && !isLocal && (
+                        <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                          <button onClick={() => muteParticipant(p.identity)} className="p-1.5 rounded-lg bg-black/40 text-white/70 hover:text-orange-400 hover:bg-black/60" title="Mute"><MicOffIcon className="h-4 w-4" /></button>
+                          <button onClick={() => disconnectParticipant(p.identity)} className="p-1.5 rounded-lg bg-black/40 text-white/70 hover:text-red-400 hover:bg-black/60" title="Kick"><VolumeX className="h-4 w-4" /></button>
                         </div>
                       )}
+                      <div className="relative">
+                        <div className={`w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden border-4 transition-all duration-300 ${isSpeaking ? "border-green-400 scale-105" : "border-white/10"}`}>
+                          {profilePic ? <img src={profilePic} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center bg-[#3b3b52] text-white text-2xl font-bold">{p.name?.charAt(0).toUpperCase() || "?"}</div>}
+                        </div>
+                        {isAdminUser && <div className="absolute -top-1 -left-1 w-6 h-6 rounded-full bg-yellow-500 flex items-center justify-center shadow-lg border-2 border-[#1a1a2e]"><Crown className="h-3.5 w-3.5 text-black" /></div>}
+                      </div>
+                      <div className="mt-4 flex items-center gap-1.5"><span className="text-white font-semibold text-sm">{p.name || p.identity}</span>{isLocal && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/10 text-white/50">You</span>}</div>
+                      <div className="flex items-center gap-1 mt-1">{isSpeaking ? <Volume2 className="h-3.5 w-3.5 text-green-400 animate-pulse" /> : isMuted ? <VolumeX className="h-3.5 w-3.5 text-red-400" /> : <Volume2 className="h-3.5 w-3.5 text-white/30" />}<span className="text-xs text-white/40">{isMuted ? "Muted" : isSpeaking ? "Speaking" : "Connected"}</span></div>
+                      {isSpeaking && <div className="absolute top-3 left-3 px-2 py-1 rounded-full bg-green-500/20 border border-green-400/30 text-green-400 text-[10px] font-semibold">Speaking</div>}
+                      <div className="mt-auto pt-4 opacity-0 group-hover:opacity-100 transition-opacity w-full flex items-center gap-1.5">
+                        <Volume2 className="h-3 w-3 text-white/60 shrink-0" />
+                        <input type="range" min="0" max="100" value={vol} onChange={e => handleVolumeChange(p.identity, Number(e.target.value))} className="flex-1 h-1 accent-[#0F7C9D] bg-slate-600 rounded-full appearance-none cursor-pointer" />
+                        <span className="text-[10px] text-white/60 w-6 text-right">{vol}%</span>
+                      </div>
                     </div>
-                    {isSpeaking && (
-                      <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-gray-950 animate-pulse" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-white text-sm font-medium truncate">{p.name || p.identity}</span>
-                      {isAdminUser && <Crown className="h-3 w-3 text-yellow-500 shrink-0" />}
-                      {isLocal && (
-                        <span className="text-[10px] text-white/50 bg-white/10 px-1.5 py-0.5 rounded">You</span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1 mt-0.5">
-                      {isSpeaking ? (
-                        <Volume2 className="h-3 w-3 text-green-400 animate-pulse" />
-                      ) : isMuted ? (
-                        <VolumeX className="h-3 w-3 text-red-400" />
-                      ) : (
-                        <Volume2 className="h-3 w-3 text-white/30" />
-                      )}
-                      <span className="text-[10px] text-white/40">
-                        {isMuted ? "Muted" : isSpeaking ? "Speaking" : "Connected"}
-                      </span>
-                    </div>
-                  </div>
-                  {isAdmin && !isLocal && (
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => muteParticipant(p.identity)} className="text-white/50 hover:text-orange-400 p-0.5" title="Mute">
-                        <MicOffIcon className="h-3.5 w-3.5" />
-                      </button>
-                      <button onClick={() => disconnectParticipant(p.identity)} className="text-white/50 hover:text-red-400 p-0.5" title="Kick">
-                        <VolumeX className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </aside>
-
-        <main className="flex-1 flex items-center justify-center bg-[#04070E] relative overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(15,124,157,0.1),transparent_70%)] animate-pulse" />
-          <div className="relative z-10 text-center space-y-6 max-w-md mx-auto px-4">
-            <div className="w-20 h-20 rounded-full bg-gray-800 border-2 border-slate-700 flex items-center justify-center mx-auto">
-              {participantPictures[roomData.creator.username] ? (
-                <img src={participantPictures[roomData.creator.username] || ""} alt="" className="w-full h-full object-cover rounded-full" />
-              ) : (
-                <User className="h-10 w-10 text-white/30" />
-              )}
+                  )
+                })}
+              </div>
             </div>
-            <div>
-              <h2 className="text-white text-2xl font-bold">{roomData.name}</h2>
-              <p className="text-white/40 text-sm mt-1">Hosted by {roomData.creator.username}</p>
-            </div>
+          </main>
 
-              <div className="bg-gray-900/80 border border-slate-700 rounded-xl px-4 py-2.5 w-full max-w-full overflow-hidden">
-                <div className="flex items-center justify-center gap-2 min-w-0">
-                  <Users className="h-4 w-4 text-white/40 shrink-0" />
-                  <code className="text-[#0F7C9D] font-mono text-sm md:text-base font-bold truncate">
-                    game-call.vercel.app/room/{roomData.room_code}
-                  </code>
-                  <button onClick={copyRoomCode} className="text-white/50 hover:text-white transition-colors shrink-0 ml-1">
-                    {copied ? <Check className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4" />}
-                  </button>
+          {showChat && (
+            <aside className="relative z-20 w-[340px] shrink-0 border-l border-slate-800 bg-gray-950 flex flex-col">
+              <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+                <h3 className="text-white/80 text-sm font-semibold">Room Chat</h3>
+                <button onClick={toggleChat} className="text-white/50 hover:text-white"><ChevronDown className="h-5 w-5" /></button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {messages.map(msg => (
+                  <div key={msg.id} className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs font-bold text-white/80 shrink-0">{msg.display_name.charAt(0).toUpperCase()}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2"><span className="text-white text-sm font-medium">{msg.display_name}</span><span className="text-white/40 text-xs">{new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span></div>
+                      <p className="text-white/70 text-sm mt-0.5 break-words">{msg.text}</p>
+                    </div>
+                  </div>
+                ))}
+                <div ref={chatEndRef} />
+              </div>
+              <div className="p-4 border-t border-slate-800 bg-gray-950/50">
+                <div className="flex items-end gap-2">
+                  <textarea ref={chatInputRef} placeholder="Type a message..." value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={handleKeyDown} rows={1}
+                    className="flex-1 max-h-[160px] px-4 py-2 bg-gray-900 border border-slate-700 rounded-lg text-white text-sm focus:border-[#0F7C9D] focus:ring-1 focus:ring-[#0F7C9D]/30 placeholder:text-white/30 resize-none overflow-y-auto" />
+                  <button onClick={handleSendMessage} className="h-10 w-10 flex items-center justify-center bg-[#0F7C9D] hover:bg-[#0E6A87] text-white rounded-lg shrink-0"><Send className="h-4 w-4" /></button>
                 </div>
               </div>
-
-            <div className="flex items-center justify-center gap-2 text-white/40 text-sm">
-              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              <span>Connected • Low Latency</span>
-            </div>
-          </div>
-        </main>
+            </aside>
+          )}
+        </div>
       </div>
 
-      <div className="bg-gray-950/80 backdrop-blur-md border-t border-slate-800 px-6 py-4 flex items-center justify-center shrink-0 relative">
-        <div className="flex items-center gap-8">
-          <button
-            onClick={toggleMute}
-            className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg ${
-              isMuted
-                ? "bg-red-500/20 text-red-400 hover:bg-red-500/30 hover:shadow-red-500/20"
-                : "bg-gray-800 text-white hover:bg-gray-700 hover:shadow-gray-500/20"
-            }`}
-            disabled={!!micError}
-          >
-            {isMuted ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
+      {/* Bottom Bar */}
+      <div className="relative z-30 shrink-0 bg-gray-950/90 backdrop-blur-md border-t border-slate-800 px-6 py-4 flex items-center justify-center gap-6">
+        <div className="flex items-center gap-3">
+          <button onClick={toggleMute} disabled={!!micError}
+            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg ${isMuted ? "bg-red-500/20 text-red-400 hover:bg-red-500/30 hover:shadow-red-500/20" : "bg-gray-800 text-white hover:bg-gray-700 hover:shadow-gray-500/20"}`}>
+            {isMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
           </button>
-
-          <div className="flex items-center gap-3 text-white/40">
-            <Volume2 className="h-5 w-5" />
-            <div className="w-24 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-              <div className="h-full w-3/4 bg-white/40 rounded-full" />
-            </div>
-          </div>
+          <button onClick={toggleChat}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-full transition-all duration-300 cursor-pointer ${showChat ? "bg-[#0F7C9D]/20 border border-[#0F7C9D]/30 text-[#0F7C9D]" : "bg-gray-800 border border-slate-700 text-white/60 hover:bg-gray-700 hover:text-white"}`}>
+            <MessageSquare className="h-4 w-4" /><span className="text-sm font-medium">Chat</span>
+          </button>
         </div>
-
+        <button onClick={handleLeave} className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 hover:border-red-500/30 transition-all duration-300 cursor-pointer ml-8">
+          <Phone className="h-4 w-4 rotate-135" /><span className="text-sm font-medium">Leave</span>
+        </button>
         {isAdmin && (
           <div className="absolute right-6 bottom-4" ref={adminMenuRef}>
-            <button
-              onClick={() => setAdminMenuOpen(!adminMenuOpen)}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-md bg-gray-800/80 border border-slate-700 text-white/70 hover:bg-gray-700 text-sm backdrop-blur-sm cursor-pointer transition-all"
-            >
-              <Settings className="h-4 w-4" />
-              Admin
-              <ChevronDown className="h-3 w-3 ml-1" />
+            <button onClick={() => setAdminMenuOpen(!adminMenuOpen)} className="flex items-center gap-1 px-3 py-1.5 rounded-md bg-gray-800/80 border border-slate-700 text-white/70 hover:bg-gray-700 text-sm backdrop-blur-sm cursor-pointer transition-all">
+              <Settings className="h-4 w-4" /> Admin <ChevronDown className="h-3 w-3 ml-1" />
             </button>
             {adminMenuOpen && (
               <div className="absolute bottom-full right-0 mb-2 w-44 bg-gray-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden z-50 backdrop-blur-sm">
-                <button onClick={muteAll} className="w-full text-left px-4 py-2.5 text-white/70 hover:bg-gray-800 text-sm cursor-pointer flex items-center gap-2">
-                  <MicOffIcon className="h-4 w-4" /> Mute All
-                </button>
-                <button onClick={endRoom} className="w-full text-left px-4 py-2.5 text-red-400/80 hover:bg-gray-800 text-sm cursor-pointer flex items-center gap-2">
-                  <Phone className="h-4 w-4 rotate-135" /> End Room
-                </button>
+                <button onClick={muteAll} className="w-full text-left px-4 py-2.5 text-white/70 hover:bg-gray-800 text-sm cursor-pointer flex items-center gap-2"><MicOffIcon className="h-4 w-4" /> Mute All</button>
+                <button onClick={endRoom} className="w-full text-left px-4 py-2.5 text-red-400/80 hover:bg-gray-800 text-sm cursor-pointer flex items-center gap-2"><Phone className="h-4 w-4 rotate-135" /> End Room</button>
               </div>
             )}
           </div>
@@ -402,20 +347,8 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
 
 export function VoiceRoom({ roomData, onLeave }: VoiceRoomProps) {
   return (
-    <LiveKitRoom
-      serverUrl={roomData.livekit.url}
-      token={roomData.livekit.token}
-      connect
-      audio
-      video={false}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 9999,
-        width: "100vw",
-        height: "100vh",
-      }}
-    >
+    <LiveKitRoom serverUrl={roomData.livekit.url} token={roomData.livekit.token} connect audio video={false}
+      style={{ position: "fixed", inset: 0, zIndex: 9999, width: "100vw", height: "100vh" }}>
       <RoomInterface roomData={roomData} onLeave={onLeave} />
       <RoomAudioRenderer />
     </LiveKitRoom>

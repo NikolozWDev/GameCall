@@ -9,7 +9,7 @@ from django.shortcuts import get_object_or_404
 from django_ratelimit.decorators import ratelimit
 from django.utils.decorators import method_decorator
 from django.utils import timezone
-from .models import Room, Participant, PasswordResetCode, PasswordResetToken
+from .models import Room, Participant, PasswordResetCode, PasswordResetToken, ChatMessage
 from .serializers import (
     UserRegisterSerializer,
     UserPublicSerializer,
@@ -22,6 +22,7 @@ from .serializers import (
     ForgotPasswordSerializer,
     VerifyResetCodeSerializer,
     ResetPasswordSerializer,
+    ChatMessageSerializer,
 )
 from .utils.livekit import generate_livekit_token
 from django.conf import settings
@@ -250,13 +251,20 @@ class RoomJoinView(APIView):
 
         can_publish = not participant.is_muted and (is_admin or room.allow_all_speak)
 
-        token = generate_livekit_token(
-            room_name=str(room.id),
-            identity=identity,
-            name=display_name,
-            is_admin=is_admin,
-            can_publish=can_publish,
-        )
+        try:
+            token = generate_livekit_token(
+                room_name=str(room.id),
+                identity=identity,
+                name=display_name,
+                is_admin=is_admin,
+                can_publish=can_publish,
+            )
+        except ValueError as e:
+            print(f"ERROR: {e}")
+            return Response({"detail": str(e)}, status=500)
+        except Exception as e:
+            print(f"ERROR generating token: {e}")
+            return Response({"detail": "Failed to generate token"}, status=500)
 
         data = RoomPublicSerializer(room).data
         data["livekit"] = {
@@ -264,6 +272,9 @@ class RoomJoinView(APIView):
             "token": token,
             "is_admin": is_admin,
         }
+        print(f"Token identity: {identity}")
+        print(f"Room ID: {str(room.id)}")
+        print(f"Token first 50 chars: {token[:50]}...")
         return Response(data, status=200)
 
 
@@ -374,3 +385,43 @@ class ResetPasswordView(APIView):
         reset_token.save()
 
         return Response({"detail": "Password has been reset successfully."}, status=200)
+
+
+class MessageListCreateView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, room_id):
+        room = get_object_or_404(Room, pk=room_id, is_active=True)
+        messages = room.messages.all().order_by("created_at")[:50]
+        serializer = ChatMessageSerializer(messages, many=True)
+        return Response(serializer.data)
+
+    @method_decorator(ratelimit(key="ip", rate="20/m", block=True))
+    def post(self, request, room_id):
+        room = get_object_or_404(Room, pk=room_id, is_active=True)
+        identity = request.data.get("identity")
+        display_name = request.data.get("display_name")
+        text = request.data.get("text", "").strip()
+
+        if not identity or not display_name or not text:
+            return Response(
+                {"detail": "identity, display_name, and text are required."},
+                status=400,
+            )
+        if len(text) > 1000:
+            return Response({"detail": "Message too long."}, status=400)
+
+        if not room.participants.filter(identity=identity).exists():
+            return Response(
+                {"detail": "Not a participant of this room."},
+                status=403,
+            )
+
+        message = ChatMessage.objects.create(
+            room=room,
+            identity=identity,
+            display_name=display_name,
+            text=text,
+        )
+        serializer = ChatMessageSerializer(message)
+        return Response(serializer.data, status=201)

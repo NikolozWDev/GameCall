@@ -81,3 +81,15 @@ class Participant(models.Model):
 
     class Meta:
         unique_together = ("room", "identity")
+
+
+class ChatMessage(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name="messages")
+    identity = models.CharField(max_length=200)
+    display_name = models.CharField(max_length=50)
+    text = models.TextField(max_length=1000)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]

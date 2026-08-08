@@ -20,6 +20,7 @@ from .views import (
     ForgotPasswordView,
     VerifyResetCodeView,
     ResetPasswordView,
+    MessageListCreateView,
 )
 
 app_name = "api"
@@ -45,4 +46,5 @@ urlpatterns = [
     path("user/forgot-password/", ForgotPasswordView.as_view(), name="forgot_password"),
     path("user/verify-reset-code/", VerifyResetCodeView.as_view(), name="verify_reset_code"),
     path("user/reset-password/", ResetPasswordView.as_view(), name="reset_password"),
+    path("rooms/<uuid:room_id>/messages/", MessageListCreateView.as_view(), name="room_messages"),
 ]

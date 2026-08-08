@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from rest_framework import serializers
-from .models import Room, Participant, PasswordResetCode, PasswordResetToken
+from .models import Room, Participant, PasswordResetCode, PasswordResetToken, ChatMessage
 
 User = get_user_model()
 
@@ -257,3 +257,10 @@ class ResetPasswordSerializer(serializers.Serializer):
             raise serializers.ValidationError({"token": "Token has expired. Please start over."})
         attrs['reset_token'] = reset_token
         return attrs
+
+
+class ChatMessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ChatMessage
+        fields = ("id", "identity", "display_name", "text", "created_at")
+        read_only_fields = ("id", "created_at")

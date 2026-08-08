@@ -50,7 +50,7 @@ export function RoomCreatedOverlay({ room, onEnterRoom }: RoomCreatedOverlayProp
   const [isEntering, setIsEntering] = useState(false)
   const [profilePicture, setProfilePicture] = useState<string | null>(null)
 
-  const roomUrl = `gamecall.com/room/${room.room_code}`
+  const roomUrl = `game-call.vercel.app/room/${room.room_code}`
 
   const loadProfilePicture = useCallback(async () => {
     if (!isAuthenticated) return
