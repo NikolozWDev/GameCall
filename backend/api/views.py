@@ -248,6 +248,10 @@ class RoomJoinView(APIView):
             defaults={"display_name": display_name, "is_muted": False}
         )
 
+        # ✅ FIX: Always reset mute on join
+        participant.is_muted = False
+        participant.save()
+
         can_publish = not participant.is_muted and (is_admin or room.allow_all_speak)
 
         try:

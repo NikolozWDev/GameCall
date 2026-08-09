@@ -55,7 +55,6 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
   const participants = useParticipants()
   const { localParticipant } = useLocalParticipant()
   const room = useRoomContext()
-  // ✅ Mic starts ON
   const [isMuted, setIsMuted] = useState(false)
   const [micError, setMicError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
@@ -94,7 +93,7 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
   }, [])
 
   const participantPictures: Record<string, string | null> = {}
-  if (roomData.participants) for (const p of roomData.participants) participantPictures[p.display_name] = p.profile_picture_url
+  if (roomData.participants) for (const p of roomData.participants) participantPictures[p.name || p.identity] = p.profile_picture_url
   const isAdmin = roomData.livekit.is_admin
 
   useEffect(() => { chatApi.fetchMessages(roomData.id).then(setMessages).catch(console.error) }, [roomData.id])
@@ -150,12 +149,14 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
 
   useEffect(() => { if (roomData.room_code) window.history.replaceState(null, "", `/room/${roomData.room_code}`) }, [roomData.room_code])
 
-  // ✅ Mic permission check – does NOT force mute anymore
   useEffect(() => {
     if (localParticipant) {
       navigator.mediaDevices.getUserMedia({ audio: true })
         .then(stream => { stream.getTracks().forEach(t => t.stop()); setMicError(null) })
         .catch(() => setMicError("Microphone not available. You can still listen."))
+
+      localParticipant.setMicrophoneEnabled(true)
+        .catch(err => console.error("Mic enable failed:", err))
     }
   }, [localParticipant])
 
