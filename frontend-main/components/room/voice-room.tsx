@@ -6,6 +6,7 @@ import {
   LiveKitRoom, RoomAudioRenderer,
   useParticipants, useLocalParticipant, useRoomContext,
 } from "@livekit/components-react"
+import { Track } from "livekit-client"
 import "@livekit/components-styles"
 import {
   Mic, MicOff, Phone, Users, Copy, Check, Crown,
@@ -15,7 +16,6 @@ import {
 import type { RoomJoinResponse, ChatMessage } from "@/lib/api"
 import { getAccessToken, chatApi, api } from "@/lib/api"
 import { playSound, SoundEvent } from '@/lib/sounds'
-import { Track } from "livekit-client"
 
 interface VoiceRoomProps { roomData: RoomJoinResponse; onLeave: () => void }
 
@@ -86,6 +86,10 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
       }, 1200)
     }, 8000)
     return () => clearInterval(interval)
+  }, [])
+
+  useEffect(() => {
+    window.__lenis?.start()
   }, [])
 
   const participantPictures: Record<string, string | null> = {}
@@ -219,7 +223,6 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
     })
 
     const action: MediaSessionAction = 'togglemicrophone' as MediaSessionAction
-
     navigator.mediaSession.setActionHandler(action, () => toggleMute())
 
     return () => {
@@ -303,19 +306,11 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
   const handleVolumeChange = useCallback((identity: string, value: number) => {
     setVolumes(prev => ({ ...prev, [identity]: value }))
     const p = participants.find(pp => pp.identity === identity)
-    if (!p) return
-    
-    const audioPub = p.getTrackPublication(Track.Source.Microphone)
-    if (audioPub && audioPub.audioTrack) {
-      const audioEl = document.getElementById(`audio-${p.sid}`) as HTMLAudioElement
+    if (p) {
+      const audioEl = document.querySelector(`audio[data-lk-audio="${p.identity}"]`) as HTMLAudioElement
       if (audioEl) {
         audioEl.volume = value / 100
-        return
       }
-    }
-    
-    if ((p as any).audioTrack) {
-      (p as any).audioTrack.setVolume?.(value / 100)
     }
   }, [participants])
 
@@ -364,7 +359,7 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
   const toggleChat = () => setShowChat(prev => !prev)
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-[#04070E]">
+    <div className="h-dvh flex flex-col overflow-hidden bg-[#04070E]">
       {isLeaving && (
         <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center">
           <div className="text-center">
@@ -416,7 +411,7 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
                   const isLocal = p.identity === localParticipant?.identity
                   const isSpeaking = p.isSpeaking
                   const isMuted = !p.isMicrophoneEnabled
-                  const isAdminUser = p.permissions?.canPublish && isAdmin
+                  const isAdminUser = p.identity.startsWith(`user-${roomData.creator.id}`)
                   const profilePic = participantPictures[p.name || ""]
                   const vol = volumes[p.identity] ?? 100
                   return (
@@ -520,7 +515,7 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
         </div>
       </div>
 
-      <div className="relative z-30 shrink-0 bg-gray-950/90 backdrop-blur-md border-t border-slate-800 px-3 md:px-6 py-3 md:py-4 flex items-center justify-center gap-3 md:gap-6">
+      <div className="relative z-30 shrink-0 bg-gray-950/90 backdrop-blur-md border-t border-slate-800 px-3 md:px-6 py-3 md:py-4 flex items-center justify-center gap-3 md:gap-6 pb-[env(safe-area-inset-bottom,16px)]">
         <div className="flex items-center gap-2 md:gap-3">
           <span className="hidden md:block text-[10px] text-white/30 font-mono">Ctrl+Space</span>
           <button
