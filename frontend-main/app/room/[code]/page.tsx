@@ -39,7 +39,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
         setRoomData(data)
       } catch (err) {
         if (err instanceof APIError) setError(err.message)
-        else setError("Failed to join room")
+        else setError("Failed to join room. It may no longer exist.")
       } finally {
         setIsJoining(false)
       }
@@ -54,7 +54,17 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     setNeedsName(false)
   }
 
-  if (authLoading) {
+  if (authLoading || (needsName && !guestName && !user)) {
+    if (authLoading) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-[#04070E]">
+          <Loader2 className="h-8 w-8 animate-spin text-[#0F7C9D]" />
+        </div>
+      )
+    }
+    if (!user && !guestName && !needsName) {
+      return <GuestNamePrompt onComplete={handleGuestNameComplete} roomCode={roomCode} />
+    }
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#04070E]">
         <Loader2 className="h-8 w-8 animate-spin text-[#0F7C9D]" />
@@ -100,7 +110,12 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     )
   }
 
+
   if (roomData) return <VoiceRoom roomData={roomData} onLeave={handleLeave} />
 
-  return null
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-[#04070E]">
+      <Loader2 className="h-8 w-8 animate-spin text-[#0F7C9D]" />
+    </div>
+  )
 }

@@ -12,9 +12,9 @@ const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "GameCall - Voice Calls Made Simple",
+  title: "Game-Call - Voice Calls Made Simple",
   description: "Create or join voice rooms instantly. Perfect for gaming, meetings, and hangouts.",
-  generator: "v0.app",
+  generator: "Nikoloz-Gigiashvili",
   icons: {
     icon: "/gamecall-logo.png",
     apple: "/gamecall-logo.png",

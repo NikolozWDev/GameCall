@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useAuth } from "@/lib/auth-context"
 import { profileApi, uploadProfilePicture, type UserProfile } from "@/lib/api"
 import { Loader2, Camera, User, Save, X, LogOut } from "lucide-react"
+import { playSound, SoundEvent } from '@/lib/sounds'
 
 interface AccountSettingsModalProps {
   open: boolean
@@ -117,6 +118,7 @@ export function AccountSettingsModal({ open, onOpenChange }: AccountSettingsModa
       setProfilePicture(null)
       if (fileInputRef.current) fileInputRef.current.value = ""
       await refreshUser()
+      playSound(SoundEvent.PROFILE_UPDATE)
       setProfileSuccess("Profile updated successfully!")
       setTimeout(() => setProfileSuccess(""), 3000)
     } catch (err: any) {
@@ -129,37 +131,51 @@ export function AccountSettingsModal({ open, onOpenChange }: AccountSettingsModa
   if (!user) return null
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
-      <DialogContent className="sm:max-w-lg bg-gray-950 border-2 border-slate-800 rounded-xl p-0 gap-0 max-h-[85vh] flex flex-col">
-        <div className="shrink-0 px-8 pt-8 pb-4">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="
+        w-[calc(100%-32px)] max-w-lg mx-auto
+        bg-gray-950 border-2 border-slate-800 rounded-xl 
+        p-0 gap-0 
+        max-h-[90vh] md:max-h-[85vh] 
+        flex flex-col
+        fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
+        z-[100]
+      ">
+        <div className="shrink-0 px-6 md:px-8 pt-6 md:pt-8 pb-4">
           <DialogHeader>
             <DialogTitle className="flex flex-col items-center gap-4 text-center">
-              <div className="w-14 h-14 rounded-2xl bg-[#0F7C9D] flex items-center justify-center shadow-lg shadow-[#0F7C9D]/30">
-                <User className="h-7 w-7 text-white" />
+              <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-[#0F7C9D] flex items-center justify-center shadow-lg shadow-[#0F7C9D]/30">
+                <User className="h-6 w-6 md:h-7 md:w-7 text-white" />
               </div>
               <div>
-                <h2 className="text-white text-2xl font-bold">Account Settings</h2>
+                <h2 className="text-white text-xl md:text-2xl font-bold">Account Settings</h2>
                 <p className="text-white/50 text-sm mt-1">Manage your profile</p>
               </div>
             </DialogTitle>
           </DialogHeader>
         </div>
 
-        <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain px-8 pb-8 space-y-8">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain px-6 md:px-8 pb-8 space-y-6 md:space-y-8">
           <div className="flex flex-col items-center gap-4">
             <div className="relative">
-              <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-800 border-2 border-slate-700 flex items-center justify-center">
+              <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden bg-gray-800 border-2 border-slate-700 flex items-center justify-center">
                 {previewUrl ? (
                   <img src={previewUrl} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
                   <User className="h-10 w-10 text-white/30" />
                 )}
               </div>
-              <button onClick={() => fileInputRef.current?.click()} className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-[#0F7C9D] flex items-center justify-center shadow-lg hover:bg-[#0E6A87] transition-colors cursor-pointer">
+              <button 
+                onClick={() => fileInputRef.current?.click()} 
+                className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-[#0F7C9D] flex items-center justify-center shadow-lg hover:bg-[#0E6A87] transition-colors cursor-pointer"
+              >
                 <Camera className="h-4 w-4 text-white" />
               </button>
               {previewUrl && previewUrl !== profile?.profile_picture_url && (
-                <button onClick={removeProfilePicture} className="absolute top-0 right-0 w-6 h-6 rounded-full bg-red-500 flex items-center justify-center shadow-lg cursor-pointer">
+                <button 
+                  onClick={removeProfilePicture} 
+                  className="absolute top-0 right-0 w-6 h-6 rounded-full bg-red-500 flex items-center justify-center shadow-lg cursor-pointer"
+                >
                   <X className="h-3 w-3 text-white" />
                 </button>
               )}
@@ -181,10 +197,29 @@ export function AccountSettingsModal({ open, onOpenChange }: AccountSettingsModa
               />
               {usernameError && <p className="text-xs text-red-400 mt-1">{usernameError}</p>}
             </div>
-            {profileError && <div className="p-3 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg">{profileError}</div>}
-            {profileSuccess && <div className="p-3 text-sm text-green-400 bg-green-500/10 border border-green-500/20 rounded-lg">{profileSuccess}</div>}
-            <Button onClick={handleSaveProfile} disabled={isProfileLoading} className="w-full h-12 bg-[#0F7C9D] hover:bg-[#0E6A87] text-white font-semibold rounded-lg cursor-pointer">
-              {isProfileLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <><Save className="h-4 w-4 mr-2" /> Save Profile</>}
+            
+            {profileError && (
+              <div className="p-3 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg">
+                {profileError}
+              </div>
+            )}
+            
+            {profileSuccess && (
+              <div className="p-3 text-sm text-green-400 bg-green-500/10 border border-green-500/20 rounded-lg">
+                {profileSuccess}
+              </div>
+            )}
+            
+            <Button 
+              onClick={handleSaveProfile} 
+              disabled={isProfileLoading} 
+              className="w-full h-12 bg-[#0F7C9D] hover:bg-[#0E6A87] text-white font-semibold rounded-lg cursor-pointer"
+            >
+              {isProfileLoading ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <><Save className="h-4 w-4 mr-2" /> Save Profile</>
+              )}
             </Button>
           </div>
 

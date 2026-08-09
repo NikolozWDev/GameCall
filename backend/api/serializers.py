@@ -124,7 +124,6 @@ class ParticipantPublicSerializer(serializers.ModelSerializer):
         fields = ("identity", "display_name", "is_muted", "profile_picture_url")
 
     def get_profile_picture_url(self, obj):
-        # identity format: user-{id}-{uuid}  OR  guest-{session}-{uuid}
         if obj.identity.startswith("user-"):
             try:
                 parts = obj.identity.split("-")

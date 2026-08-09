@@ -3,16 +3,18 @@
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
-import { Plus, User, Users } from "lucide-react"
+import { Plus, User, Users, Menu, X } from "lucide-react"
 import { useState, useEffect, useCallback } from "react"
 import { AccountSettingsModal } from "@/components/auth/account-settings-modal"
 import { profileApi } from "@/lib/api"
+import { MobileMenu } from "@/components/mobile-menu"
 
 export function Header() {
-  const { user, isAuthenticated, logout } = useAuth()
+  const { user, isAuthenticated } = useAuth()
   const router = useRouter()
   const [showSettings, setShowSettings] = useState(false)
   const [profilePicture, setProfilePicture] = useState<string | null>(null)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const loadProfilePicture = useCallback(async () => {
     if (!isAuthenticated || !user) return
@@ -31,14 +33,6 @@ export function Header() {
     if (!open) loadProfilePicture()
   }
 
-  const handleCreateRoom = () => {
-    if (!isAuthenticated) {
-      router.push("/?auth=login")
-      return
-    }
-    router.push("/?create=true")
-  }
-
   return (
     <header className="bg-[#04070E]/40 backdrop-blur-xl sticky top-0 z-40">
       <div className="container mx-auto max-w-6xl px-4 md:px-8 py-4 flex items-center justify-between">
@@ -50,7 +44,7 @@ export function Header() {
           </p>
         </button>
 
-        <div className="flex items-center gap-3">
+        <div className="hidden md:flex items-center gap-3">
           {isAuthenticated ? (
             <>
               <div className="flex items-center gap-2">
@@ -96,7 +90,7 @@ export function Header() {
                 <Button
                   size="sm"
                   className="bg-[#0F7C9D] text-white hover:bg-[#0E6A87] hover:shadow-lg hover:shadow-[#0F7C9D]/40 active:scale-95 cursor-pointer transition-all duration-300 text-sm px-6"
-                  onClick={handleCreateRoom}
+                  onClick={() => router.push("/?create=true")}
                 >
                   <Plus className="h-4 w-4 mr-1" />
                   Create Room
@@ -139,7 +133,21 @@ export function Header() {
             </>
           )}
         </div>
+
+        <button
+          className="md:hidden p-2 text-white/70 hover:text-white"
+          onClick={() => setMobileMenuOpen(prev => !prev)}
+          aria-label="Toggle menu"
+        >
+          {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+        </button>
       </div>
+
+      <MobileMenu 
+        open={mobileMenuOpen} 
+        onClose={() => setMobileMenuOpen(false)} 
+        onOpenSettings={() => setShowSettings(true)} 
+      />
 
       <AccountSettingsModal open={showSettings} onOpenChange={handleSettingsOpenChange} />
     </header>

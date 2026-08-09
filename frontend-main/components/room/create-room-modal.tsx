@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/auth-context"
 import { api, APIError, type Room } from "@/lib/api"
 import { profileApi } from "@/lib/api"
 import { Loader2, Zap, ArrowRight, User } from "lucide-react"
+import { playSound, SoundEvent } from '@/lib/sounds'
 
 interface CreateRoomModalProps {
   open: boolean
@@ -46,6 +47,7 @@ export function CreateRoomModal({ open, onOpenChange, onCreateSuccess }: CreateR
     setIsLoading(true)
     try {
       const room = await api.createRoom(roomName.trim())
+      playSound(SoundEvent.ROOM_CREATED)
       onCreateSuccess(room)
       onOpenChange(false)
       setRoomName("")

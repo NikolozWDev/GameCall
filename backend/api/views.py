@@ -33,6 +33,7 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.core.mail import send_mail
 from django.core.mail import EmailMultiAlternatives
 import random
+from django.core.mail import send_mail
 
 User = get_user_model()
 
@@ -420,3 +421,45 @@ class MessageListCreateView(APIView):
         )
         serializer = ChatMessageSerializer(message)
         return Response(serializer.data, status=201)
+
+
+class ContactView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        name = request.data.get("name", "").strip()
+        email = request.data.get("email", "").strip()
+        subject = request.data.get("subject", "").strip()
+        message = request.data.get("message", "").strip()
+
+        if not all([name, email, subject, message]):
+            return Response(
+                {"detail": "All fields are required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        full_message = f"""
+New contact form submission from GameCall:
+
+Name: {name}
+Email: {email}
+Subject: {subject}
+
+Message:
+{message}
+        """.strip()
+
+        try:
+            send_mail(
+                subject=f"GameCall Contact: {subject}",
+                message=full_message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=["gigiashvilinikoloz@gmail.com"],
+                fail_silently=False,
+            )
+            return Response({"detail": "Message sent successfully."}, status=200)
+        except Exception as e:
+            return Response(
+                {"detail": "Failed to send message. Please try again later."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
