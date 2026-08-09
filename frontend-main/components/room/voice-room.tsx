@@ -55,7 +55,8 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
   const participants = useParticipants()
   const { localParticipant } = useLocalParticipant()
   const room = useRoomContext()
-  const [isMuted, setIsMuted] = useState(true)
+  // ✅ Mic starts ON
+  const [isMuted, setIsMuted] = useState(false)
   const [micError, setMicError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [elapsed, setElapsed] = useState("00:00:00")
@@ -149,10 +150,11 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
 
   useEffect(() => { if (roomData.room_code) window.history.replaceState(null, "", `/room/${roomData.room_code}`) }, [roomData.room_code])
 
+  // ✅ Mic permission check – does NOT force mute anymore
   useEffect(() => {
     if (localParticipant) {
-      localParticipant.setMicrophoneEnabled(false).catch(console.error)
-      navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => { stream.getTracks().forEach(t => t.stop()); setMicError(null) })
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(stream => { stream.getTracks().forEach(t => t.stop()); setMicError(null) })
         .catch(() => setMicError("Microphone not available. You can still listen."))
     }
   }, [localParticipant])
