@@ -70,6 +70,40 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
   const [unreadCount, setUnreadCount] = useState(0)
   const [isLeaving, setIsLeaving] = useState(false)
 
+  const [participantPictures, setParticipantPictures] = useState<Record<string, string | null>>({})
+
+  useEffect(() => {
+    const pics: Record<string, string | null> = {}
+    if (roomData.participants) {
+      for (const p of roomData.participants) {
+        if (p.profile_picture_url) {
+          pics[p.display_name] = p.profile_picture_url
+          pics[p.identity] = p.profile_picture_url
+        }
+      }
+    }
+    setParticipantPictures(pics)
+  }, [roomData.participants])
+
+  useEffect(() => {
+    const fetchPictures = async () => {
+      try {
+        const detail = await api.getRoomDetail(roomData.id)
+        const pics: Record<string, string | null> = {}
+        if (detail.participants) {
+          for (const p of detail.participants as any[]) {
+            if (p.profile_picture_url) {
+              pics[p.display_name] = p.profile_picture_url
+              pics[p.identity] = p.profile_picture_url
+            }
+          }
+        }
+        setParticipantPictures(pics)
+      } catch {}
+    }
+    fetchPictures()
+  }, [participants.length, roomData.id])
+
   const [currentBg, setCurrentBg] = useState(() => getRandomPhoto())
   const [nextBg, setNextBg] = useState<string | null>(null)
   const currentBgRef = useRef(currentBg)
@@ -92,7 +126,6 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
     window.__lenis?.start()
   }, [])
 
-  // ✅ Audio unlock
   useEffect(() => {
     const unlock = () => {
       document.querySelectorAll('audio').forEach(a => {
@@ -107,21 +140,10 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
     }
   }, [])
 
-  // ✅ participantPictures – both by display_name and identity
-  const participantPictures: Record<string, string | null> = {}
-  if (roomData.participants) for (const p of roomData.participants) {
-    if (p.profile_picture_url) {
-      participantPictures[p.display_name] = p.profile_picture_url
-      participantPictures[p.identity] = p.profile_picture_url
-    }
-  }
-
-  // ✅ isAdmin – must be defined BEFORE the data‑channel useEffect
   const isAdmin = roomData.livekit.is_admin
 
   useEffect(() => { chatApi.fetchMessages(roomData.id).then(setMessages).catch(console.error) }, [roomData.id])
 
-  // ✅ Data‑channel handler – now safely uses isAdmin
   useEffect(() => {
     if (!room) return
     const handler = (payload: Uint8Array) => {
@@ -466,7 +488,7 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
                   const isSpeaking = p.isSpeaking
                   const isMuted = !p.isMicrophoneEnabled
                   const isAdminUser = p.identity.startsWith(`user-${roomData.creator.id}`)
-                  const profilePic = participantPictures[p.name || ""]
+                  const profilePic = participantPictures[p.name || ""] || participantPictures[p.identity]
                   const vol = volumes[p.identity] ?? 100
                   return (
                     <div key={p.sid || `${p.identity}-${p.name}`}
