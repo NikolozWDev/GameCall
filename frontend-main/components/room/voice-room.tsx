@@ -92,6 +92,7 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
     window.__lenis?.start()
   }, [])
 
+  // ✅ Audio unlock
   useEffect(() => {
     const unlock = () => {
       document.querySelectorAll('audio').forEach(a => {
@@ -106,6 +107,7 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
     }
   }, [])
 
+  // ✅ participantPictures – both by display_name and identity
   const participantPictures: Record<string, string | null> = {}
   if (roomData.participants) for (const p of roomData.participants) {
     if (p.profile_picture_url) {
@@ -114,8 +116,12 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
     }
   }
 
+  // ✅ isAdmin – must be defined BEFORE the data‑channel useEffect
+  const isAdmin = roomData.livekit.is_admin
+
   useEffect(() => { chatApi.fetchMessages(roomData.id).then(setMessages).catch(console.error) }, [roomData.id])
 
+  // ✅ Data‑channel handler – now safely uses isAdmin
   useEffect(() => {
     if (!room) return
     const handler = (payload: Uint8Array) => {
