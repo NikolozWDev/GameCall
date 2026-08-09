@@ -107,8 +107,12 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
   }, [])
 
   const participantPictures: Record<string, string | null> = {}
-  if (roomData.participants) for (const p of roomData.participants) participantPictures[p.name || p.identity] = p.profile_picture_url
-  const isAdmin = roomData.livekit.is_admin
+  if (roomData.participants) for (const p of roomData.participants) {
+    if (p.profile_picture_url) {
+      participantPictures[p.display_name] = p.profile_picture_url
+      participantPictures[p.identity] = p.profile_picture_url
+    }
+  }
 
   useEffect(() => { chatApi.fetchMessages(roomData.id).then(setMessages).catch(console.error) }, [roomData.id])
 
