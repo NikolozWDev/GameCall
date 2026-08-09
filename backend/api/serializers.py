@@ -126,12 +126,10 @@ class ParticipantPublicSerializer(serializers.ModelSerializer):
     def get_profile_picture_url(self, obj):
         if obj.identity.startswith("user-"):
             try:
-                parts = obj.identity.split("-")
-                if len(parts) >= 3:
-                    user_id = int(parts[1])
-                    user = User.objects.filter(id=user_id).first()
-                    if user and user.profile_picture_url:
-                        return user.profile_picture_url
+                user_id = int(obj.identity.split("-", 1)[1])
+                user = User.objects.filter(id=user_id).first()
+                if user and user.profile_picture_url:
+                    return user.profile_picture_url
             except (IndexError, ValueError):
                 pass
         return None
