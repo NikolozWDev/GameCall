@@ -92,6 +92,20 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
     window.__lenis?.start()
   }, [])
 
+  useEffect(() => {
+    const unlock = () => {
+      document.querySelectorAll('audio').forEach(a => {
+        a.play().catch(() => {})
+      })
+    }
+    window.addEventListener('pointerdown', unlock, { once: true })
+    window.addEventListener('keydown', unlock, { once: true })
+    return () => {
+      window.removeEventListener('pointerdown', unlock)
+      window.removeEventListener('keydown', unlock)
+    }
+  }, [])
+
   const participantPictures: Record<string, string | null> = {}
   if (roomData.participants) for (const p of roomData.participants) participantPictures[p.name || p.identity] = p.profile_picture_url
   const isAdmin = roomData.livekit.is_admin
@@ -149,7 +163,6 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
 
   useEffect(() => { if (roomData.room_code) window.history.replaceState(null, "", `/room/${roomData.room_code}`) }, [roomData.room_code])
 
-  // -- Permissions & initial mic enable (only with user gesture) --
   useEffect(() => {
     if (!localParticipant) return
 
@@ -157,18 +170,16 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
       .then(stream => { stream.getTracks().forEach(t => t.stop()); setMicError(null) })
       .catch(() => setMicError("Microphone not available. You can still listen."))
 
-    // Only try to enable if it's currently off (avoid unnecessary calls)
     if (!localParticipant.isMicrophoneEnabled) {
       localParticipant.setMicrophoneEnabled(true)
         .then(() => setIsMuted(false))
         .catch(err => {
           console.warn("Mic enable failed:", err)
-          setIsMuted(true) // keep UI in sync with real state
+          setIsMuted(true)
         })
     }
   }, [localParticipant])
 
-  // -- Timer --
   useEffect(() => {
     const createdMs = roomData.created_at 
       ? new Date(roomData.created_at).getTime()
@@ -194,14 +205,12 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
     return () => clearInterval(timer)
   }, [roomData.created_at, (roomData as any).server_time])
 
-  // -- Admin menu click outside --
   useEffect(() => {
     const handleClick = (e: MouseEvent) => { if (adminMenuRef.current && !adminMenuRef.current.contains(e.target as Node)) setAdminMenuOpen(false) }
     if (adminMenuOpen) document.addEventListener("mousedown", handleClick)
     return () => document.removeEventListener("mousedown", handleClick)
   }, [adminMenuOpen])
 
-  // -- Chat textarea auto-resize --
   useEffect(() => {
     if (chatInputRef.current) {
       chatInputRef.current.style.height = "auto"
@@ -209,19 +218,17 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
     }
   }, [chatInput])
 
-  // -- Clear unread when chat opens --
   useEffect(() => {
     if (showChat) setUnreadCount(0)
   }, [showChat])
 
-  // ✅ CORRECTED toggleMute – now works in the right direction
   const toggleMute = useCallback(async () => {
     if (!localParticipant) return
     try {
       const currentlyMuted = isMuted
-      const shouldEnable = currentlyMuted          // if muted, we want to enable (true); else disable (false)
+      const shouldEnable = currentlyMuted
       await localParticipant.setMicrophoneEnabled(shouldEnable)
-      setIsMuted(!shouldEnable)                    // update UI: now unmuted if shouldEnable is true
+      setIsMuted(!shouldEnable)
 
       playSound(shouldEnable ? SoundEvent.MIC_ON : SoundEvent.MIC_OFF)
 
@@ -240,7 +247,6 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
     }
   }, [localParticipant, isMuted, room])
 
-  // -- Media Session API --
   useEffect(() => {
     if (!('mediaSession' in navigator)) return
 
@@ -264,7 +270,6 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
     }
   }, [roomData, toggleMute])
 
-  // -- Keyboard shortcut --
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.code === 'Space') {
@@ -281,7 +286,6 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [toggleMute])
 
-  // -- Leave room --
   const handleLeave = useCallback(async () => {
       setIsLeaving(true)
       playSound(SoundEvent.PARTICIPANT_LEAVE)
@@ -346,10 +350,8 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
     } catch (err) { console.error("End room failed:", err) }
   }
 
-  // ✅ CORRECTED volume control – uses LiveKit API
   const handleVolumeChange = useCallback((identity: string, value: number) => {
     setVolumes(prev => ({ ...prev, [identity]: value }))
-
     const participant = participants.find(p => p.identity === identity)
     if (participant && !participant.isLocal) {
       participant.setVolume(value / 100)
@@ -411,7 +413,6 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
         </div>
       )}
 
-      {/* Top Bar */}
       <div className="relative z-30 shrink-0 bg-gray-950/90 backdrop-blur-md border-b border-slate-800 px-3 md:px-6 py-3 flex items-center gap-2 md:gap-6">
         <div className="flex items-center gap-2 md:gap-3">
           <img src="/gamecall-logo.png" className="w-5 h-5 md:w-6 md:h-6" alt="GameCall" />
@@ -434,7 +435,6 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
 
       {micError && <div className="relative z-30 shrink-0 bg-red-500/10 border-b border-red-500/20 px-4 py-2 flex items-center gap-2 text-red-400 text-xs"><AlertTriangle className="h-4 w-4" />{micError}</div>}
 
-      {/* Main Content */}
       <div className="relative min-h-0 flex-1 overflow-hidden">
         <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
           <img src={currentBg} aria-hidden="true"
@@ -559,7 +559,6 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
         </div>
       </div>
 
-      {/* Bottom Bar */}
       <div className="relative z-30 shrink-0 bg-gray-950/90 backdrop-blur-md border-t border-slate-800 px-3 md:px-6 py-3 md:py-4 flex items-center justify-center gap-3 md:gap-6 pb-[env(safe-area-inset-bottom,16px)]">
         <div className="flex items-center gap-2 md:gap-3">
           <span className="hidden md:block text-[10px] text-white/30 font-mono">Ctrl+Space</span>
