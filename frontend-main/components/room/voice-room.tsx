@@ -13,7 +13,7 @@ import {
   AlertTriangle, MessageSquare, Send,
 } from "lucide-react"
 import type { RoomJoinResponse, ChatMessage } from "@/lib/api"
-import { getAccessToken, chatApi } from "@/lib/api"
+import { getAccessToken, chatApi, api } from "@/lib/api"
 
 interface VoiceRoomProps { roomData: RoomJoinResponse; onLeave: () => void }
 
@@ -149,9 +149,15 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
   }, [localParticipant, isMuted])
 
   const handleLeave = useCallback(async () => {
-    try { await room.disconnect() } catch {}
-    router.push("/"); onLeave()
-  }, [room, onLeave, router])
+      try {
+        const identity = localParticipant?.identity || roomData.participants?.[0]?.identity
+        if (identity) {
+          await api.leaveRoom(roomData.id, identity)
+        }
+      } catch {}
+      try { await room.disconnect() } catch {}
+      router.push("/"); onLeave()
+  }, [room, onLeave, router, localParticipant, roomData])
 
   const copyRoomCode = () => {
     navigator.clipboard.writeText(`game-call.vercel.app/room/${roomData.room_code}`)

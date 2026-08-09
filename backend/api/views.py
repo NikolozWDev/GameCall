@@ -132,8 +132,6 @@ class RoomLeaveView(APIView):
     @staticmethod
     def _cleanup_room_if_empty(room):
         if not room.participants.exists():
-            room.is_active = False
-            room.save()
             room.delete()
 
 
@@ -216,9 +214,6 @@ class RoomEndView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        room.participants.all().delete()
-        room.is_active = False
-        room.save()
         room.delete()
         return Response({"detail": "Room has been ended."}, status=200)
 
