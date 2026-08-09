@@ -125,6 +125,7 @@ export interface RoomJoinResponse extends Room {
     display_name: string
     is_muted: boolean
     profile_picture_url: string | null
+    server_time?: string
   }>
 }
 

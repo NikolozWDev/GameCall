@@ -21,7 +21,8 @@ from .views import (
     VerifyResetCodeView,
     ResetPasswordView,
     MessageListCreateView,
-    ContactView
+    ContactView,
+    livekit_webhook
 )
 
 app_name = "api"
@@ -49,4 +50,5 @@ urlpatterns = [
     path("user/reset-password/", ResetPasswordView.as_view(), name="reset_password"),
     path("rooms/<uuid:room_id>/messages/", MessageListCreateView.as_view(), name="room_messages"),
     path("contact/", ContactView.as_view(), name="contact"),
+    path("livekit/webhook/", livekit_webhook, name="livekit_webhook"),
 ]

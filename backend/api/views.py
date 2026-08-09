@@ -34,6 +34,9 @@ from django.core.mail import send_mail
 from django.core.mail import EmailMultiAlternatives
 import random
 from django.core.mail import send_mail
+from django.views.decorators.csrf import csrf_exempt
+from django.http import HttpResponse, HttpResponseForbidden
+import hashlib, hmac, json
 
 User = get_user_model()
 
@@ -230,12 +233,12 @@ class RoomJoinView(APIView):
         room = serializer.get_room()
 
         if request.user.is_authenticated:
-            identity = f"user-{request.user.id}-{uuid.uuid4().hex[:6]}"
+            identity = f"user-{request.user.id}"
             display_name = request.user.username
             is_admin = request.user == room.creator
         else:
             guest_id = guestStorage.getSessionId(request)
-            identity = f"guest-{guest_id}-{uuid.uuid4().hex[:6]}"
+            identity = f"guest-{guest_id}"
             display_name = serializer.validated_data.get("guest_name", "Guest")
             is_admin = False
 
@@ -271,6 +274,7 @@ class RoomJoinView(APIView):
         print(f"Token identity: {identity}")
         print(f"Room ID: {str(room.id)}")
         print(f"Token first 50 chars: {token[:50]}...")
+        data["server_time"] = timezone.now().isoformat()
         return Response(data, status=200)
 
 
@@ -463,3 +467,35 @@ Message:
                 {"detail": "Failed to send message. Please try again later."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+@csrf_exempt
+def livekit_webhook(request):
+    secret = settings.LIVEKIT_WEBHOOK_SECRET
+    body = request.body
+    signature = request.headers.get("LiveKit-Webhook-Signature", "")
+
+    expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, signature):
+        return HttpResponseForbidden("Invalid signature")
+
+    try:
+        event = json.loads(body)
+    except json.JSONDecodeError:
+        return HttpResponse(status=400)
+
+    if event.get("event") == "participant_disconnected":
+        participant_identity = event["participant"]["identity"]
+        room_name = event["room"]["name"]
+
+        try:
+            room = Room.objects.get(id=room_name)
+        except Room.DoesNotExist:
+            return HttpResponse(status=200)
+
+        Participant.objects.filter(room=room, identity=participant_identity).delete()
+
+        if not room.participants.exists():
+            room.delete()
+
+    return HttpResponse(status=200)

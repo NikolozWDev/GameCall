@@ -132,12 +132,16 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
           }
         } else if (msg.type === "leave") {
           playSound(SoundEvent.PARTICIPANT_LEAVE)
+        } else if (msg.type === "room_ended") {
+          try { room.disconnect() } catch {}
+          router.push("/")
+          onLeave()
         }
       } catch {}
     }
     room.on("dataReceived", handler)
     return () => { room.off("dataReceived", handler) }
-  }, [room, localParticipant, isAdmin, showChat])
+  }, [room, localParticipant, isAdmin, showChat, onLeave, router])
 
   useEffect(() => {
     playSound(SoundEvent.ROOM_JOIN)
@@ -154,10 +158,18 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
   }, [localParticipant])
 
   useEffect(() => {
-    const roomStart = roomData.created_at 
+    const createdMs = roomData.created_at 
       ? new Date(roomData.created_at).getTime()
       : Date.now()
     
+    const serverNowMs = (roomData as any).server_time 
+      ? new Date((roomData as any).server_time).getTime()
+      : Date.now()
+    
+    const elapsedOffset = serverNowMs - createdMs
+    const initialNow = Date.now()
+    const roomStart = initialNow - elapsedOffset
+
     const timer = setInterval(() => {
       const diff = Math.floor((Date.now() - roomStart) / 1000)
       setElapsed(
@@ -168,7 +180,7 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
     }, 1000)
     
     return () => clearInterval(timer)
-  }, [roomData.created_at])
+  }, [roomData.created_at, (roomData as any).server_time])
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => { if (adminMenuRef.current && !adminMenuRef.current.contains(e.target as Node)) setAdminMenuOpen(false) }
@@ -298,8 +310,16 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
   const endRoom = async () => {
     if (!window.confirm("Are you sure you want to end this room for everyone?")) return
     try {
+      if (room.localParticipant) {
+        await room.localParticipant.publishData(
+          new TextEncoder().encode(JSON.stringify({ type: "room_ended" })),
+          { reliable: true }
+        ).catch(() => {})
+      }
       await fetchWithAuth(`/rooms/${roomData.id}/end/`, { method: "POST" })
-      setAdminMenuOpen(false); router.push("/"); onLeave()
+      setAdminMenuOpen(false)
+      router.push("/")
+      onLeave()
     } catch (err) { console.error("End room failed:", err) }
   }
 
