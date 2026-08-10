@@ -50,6 +50,13 @@ function getRandomPhoto(current?: string) {
   return next
 }
 
+interface BackendParticipant {
+  identity: string
+  display_name: string
+  is_muted: boolean
+  profile_picture_url: string | null
+}
+
 function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
   const router = useRouter()
   const participants = useParticipants()
@@ -70,38 +77,24 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
   const [unreadCount, setUnreadCount] = useState(0)
   const [isLeaving, setIsLeaving] = useState(false)
 
-  const [participantPictures, setParticipantPictures] = useState<Record<string, string | null>>({})
+  const [participantsData, setParticipantsData] = useState<BackendParticipant[]>([])
 
   useEffect(() => {
-    const pics: Record<string, string | null> = {}
     if (roomData.participants) {
-      for (const p of roomData.participants) {
-        if (p.profile_picture_url) {
-          pics[p.display_name] = p.profile_picture_url
-          pics[p.identity] = p.profile_picture_url
-        }
-      }
+      setParticipantsData(roomData.participants as BackendParticipant[])
     }
-    setParticipantPictures(pics)
   }, [roomData.participants])
 
   useEffect(() => {
-    const fetchPictures = async () => {
+    const fetchParticipants = async () => {
       try {
         const detail = await api.getRoomDetail(roomData.id)
-        const pics: Record<string, string | null> = {}
-        if (detail.participants) {
-          for (const p of detail.participants as any[]) {
-            if (p.profile_picture_url) {
-              pics[p.display_name] = p.profile_picture_url
-              pics[p.identity] = p.profile_picture_url
-            }
-          }
+        if ((detail as any).participants) {
+          setParticipantsData((detail as any).participants as BackendParticipant[])
         }
-        setParticipantPictures(pics)
       } catch {}
     }
-    fetchPictures()
+    fetchParticipants()
   }, [participants.length, roomData.id])
 
   const [currentBg, setCurrentBg] = useState(() => getRandomPhoto())
@@ -488,7 +481,8 @@ function RoomInterface({ roomData, onLeave }: VoiceRoomProps) {
                   const isSpeaking = p.isSpeaking
                   const isMuted = !p.isMicrophoneEnabled
                   const isAdminUser = p.identity.startsWith(`user-${roomData.creator.id}`)
-                  const profilePic = participantPictures[p.name || ""] || participantPictures[p.identity]
+                  const bp = participantsData.find(bp => bp.identity === p.identity)
+                  const profilePic = bp?.profile_picture_url
                   const vol = volumes[p.identity] ?? 100
                   return (
                     <div key={p.sid || `${p.identity}-${p.name}`}
