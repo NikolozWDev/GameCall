@@ -142,3 +142,5 @@ The platform is intended to grow without losing the simplicity that defines it t
 <img src="frontend-main/public/gallery/second2.png" alt="GameCall Screenshot 2" width="900">
 
 <img src="frontend-main/public/gallery/third3.png" alt="GameCall Screenshot 3" width="900">
+
+<img src="frontend-main/public/gallery/fourth4.png" alt="GameCall Screenshot 4" width="900">
