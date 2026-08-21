@@ -8,6 +8,7 @@ import { useState, useEffect, useCallback } from "react"
 import { AccountSettingsModal } from "@/components/auth/account-settings-modal"
 import { profileApi } from "@/lib/api"
 import { MobileMenu } from "@/components/mobile-menu"
+import { checkBackendHealth, warmUpBackend, type BackendStatus } from "@/lib/backend-health"
 
 export function Header() {
   const { user, isAuthenticated } = useAuth()
@@ -15,6 +16,7 @@ export function Header() {
   const [showSettings, setShowSettings] = useState(false)
   const [profilePicture, setProfilePicture] = useState<string | null>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [backendStatus, setBackendStatus] = useState<BackendStatus>("checking")
 
   const loadProfilePicture = useCallback(async () => {
     if (!isAuthenticated || !user) return
@@ -27,6 +29,18 @@ export function Header() {
   useEffect(() => {
     loadProfilePicture()
   }, [loadProfilePicture])
+
+  useEffect(() => {
+    warmUpBackend()
+    const check = async () => {
+      const isHealthy = await checkBackendHealth()
+      setBackendStatus(isHealthy ? "online" : "offline")
+    }
+    check()
+    
+    const interval = setInterval(check, 60000)
+    return () => clearInterval(interval)
+  }, [])
 
   const handleSettingsOpenChange = (open: boolean) => {
     setShowSettings(open)
@@ -43,6 +57,17 @@ export function Header() {
             <span className="text-[#0F7C9D] text-2xl font-bold">Call</span>
           </p>
         </button>
+
+        <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10">
+          <div className={`w-2 h-2 rounded-full ${
+            backendStatus === "checking" ? "bg-yellow-500 animate-pulse" :
+            backendStatus === "online" ? "bg-green-500" : "bg-red-500"
+          }`} />
+          <span className="text-xs text-white/60">
+            {backendStatus === "checking" ? "Connecting..." :
+             backendStatus === "online" ? "Server online" : "Server warming up..."}
+          </span>
+        </div>
 
         <div className="hidden md:flex items-center gap-3">
           {isAuthenticated ? (

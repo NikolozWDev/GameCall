@@ -1,7 +1,6 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api"
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-// added new backend
 
 export const getAccessToken = (): string | null => {
   if (typeof window === "undefined") return null
@@ -62,9 +61,35 @@ async function fetchWithAuth(endpoint: string, options: RequestInit = {}, requir
     headers["Authorization"] = `Bearer ${accessToken}`
   }
 
-  let response = await fetch(url, { ...options, headers })
+  let response: Response
+  let retries = 0
+  const maxRetries = 2
+  const retryDelay = 2000
 
-  if (response.status === 401 && getRefreshToken()) {
+  while (retries <= maxRetries) {
+    try {
+      response = await fetch(url, { ...options, headers })
+      
+      if (response.status === 502 || response.status === 503 || response.status === 504) {
+        if (retries < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, retryDelay * (retries + 1)))
+          retries++
+          continue
+        }
+      }
+      
+      break
+    } catch (error) {
+      if (retries < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, retryDelay * (retries + 1)))
+        retries++
+        continue
+      }
+      throw error
+    }
+  }
+
+  if (response!.status === 401 && getRefreshToken()) {
     const refreshed = await refreshAccessToken()
     if (refreshed) {
       headers["Authorization"] = `Bearer ${getAccessToken()}`
@@ -72,12 +97,12 @@ async function fetchWithAuth(endpoint: string, options: RequestInit = {}, requir
     }
   }
 
-  if (!response.ok && requireAuth && response.status === 401) {
+  if (!response!.ok && requireAuth && response!.status === 401) {
     clearTokens()
     throw new APIError("Authentication required", 401)
   }
 
-  return response
+  return response!
 }
 
 async function refreshAccessToken(): Promise<boolean> {

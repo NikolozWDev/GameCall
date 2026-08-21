@@ -37,8 +37,16 @@ from django.core.mail import send_mail
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse, HttpResponseForbidden
 import hashlib, hmac, json
+from rest_framework.decorators import api_view, permission_classes
 
 User = get_user_model()
+
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def health_check(request):
+    return Response({"status": "healthy"})
 
 
 class GuestStorage:

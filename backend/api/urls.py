@@ -22,12 +22,14 @@ from .views import (
     ResetPasswordView,
     MessageListCreateView,
     ContactView,
-    livekit_webhook
+    livekit_webhook,
+    health_check
 )
 
 app_name = "api"
 
 urlpatterns = [
+    path("health/", health_check, name="health"),
     path("user/register/", UserRegisterView.as_view(), name="register"),
     path("user/login/", CustomTokenObtainPairView.as_view(), name="login"),
     path("user/refresh/", CustomTokenRefreshView.as_view(), name="token_refresh"),
